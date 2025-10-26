@@ -79,16 +79,36 @@ cd backend && php -S localhost:3003 -t public > /tmp/verify_backend.log 2>&1 &
 BACKEND_PID=$!
 cd ..
 
-sleep 3
+# Ensure cleanup on exit
+trap "kill $BACKEND_PID 2>/dev/null" EXIT
 
-# Test health endpoint
-HEALTH_RESPONSE=$(curl -s http://localhost:3003/api/health)
-if echo "$HEALTH_RESPONSE" | grep -q "ok"; then
-    echo "  ✓ Backend health check: PASSED"
-else
-    echo "  ✗ Backend health check: FAILED"
-    echo "    Response: $HEALTH_RESPONSE"
+# Wait for server to start with retry loop
+MAX_RETRIES=10
+RETRY_COUNT=0
+SERVER_READY=false
+
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    if curl -s http://localhost:3003/api/health > /dev/null 2>&1; then
+        SERVER_READY=true
+        break
+    fi
+    sleep 1
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+done
+
+if [ "$SERVER_READY" = false ]; then
+    echo "  ✗ Backend health check: Server failed to start"
     ERRORS=$((ERRORS + 1))
+else
+    # Test health endpoint
+    HEALTH_RESPONSE=$(curl -s http://localhost:3003/api/health)
+    if echo "$HEALTH_RESPONSE" | grep -q "ok"; then
+        echo "  ✓ Backend health check: PASSED"
+    else
+        echo "  ✗ Backend health check: FAILED"
+        echo "    Response: $HEALTH_RESPONSE"
+        ERRORS=$((ERRORS + 1))
+    fi
 fi
 
 # Cleanup
