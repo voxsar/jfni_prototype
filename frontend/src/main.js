@@ -41,6 +41,7 @@ class DielineApp {
         document.getElementById('detect-lines').addEventListener('click', () => this.detectLines());
         document.getElementById('compile-geometry').addEventListener('click', () => this.compileGeometry());
         document.getElementById('build-3d').addEventListener('click', () => this.build3D());
+        document.getElementById('load-texture').addEventListener('click', () => this.loadPDFTexture());
         document.getElementById('animate-fold').addEventListener('click', () => this.animateFold());
         document.getElementById('export-glb').addEventListener('click', () => this.exportGLB());
 
@@ -163,8 +164,29 @@ class DielineApp {
         console.log('Starting 3D scene build with geometry data:', this.geometryData);
         
         this.threeScene.build3DFromGeometry(this.geometryData);
-        this.updateStatus('3D scene ready');
+        this.updateStatus('3D scene ready - Click planes to fold by 45°');
         console.log('3D scene build complete');
+    }
+
+    loadPDFTexture() {
+        if (!this.pdfRenderer.canvas) {
+            this.updateStatus('Error: Load a PDF first');
+            console.error('Cannot load texture: No PDF loaded');
+            return;
+        }
+
+        this.updateStatus('Loading PDF as texture...');
+        console.log('Loading PDF canvas as texture for 3D model');
+        
+        const result = this.threeScene.loadPDFAsTexture(this.pdfRenderer.canvas);
+        
+        if (result.success) {
+            this.updateStatus('PDF texture loaded successfully');
+            console.log('PDF texture applied to 3D model');
+        } else {
+            this.updateStatus('Error loading PDF texture');
+            console.error('Failed to load PDF texture');
+        }
     }
 
     animateFold() {

@@ -22,9 +22,13 @@ export class ThreeScene {
         
         this.meshes = [];
         this.foldAnimations = [];
+        this.pdfTexture = null;
+        this.raycaster = new THREE.Raycaster();
+        this.mouse = new THREE.Vector2();
         
         this.setupScene();
         this.setupLights();
+        this.setupClickHandler();
         this.animate();
         
         window.addEventListener('resize', () => this.onWindowResize());
@@ -52,6 +56,66 @@ export class ThreeScene {
         const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.3);
         directionalLight2.position.set(-10, -10, -10);
         this.scene.add(directionalLight2);
+    }
+
+    setupClickHandler() {
+        this.canvas.addEventListener('click', (event) => {
+            // Calculate mouse position in normalized device coordinates (-1 to +1)
+            const rect = this.canvas.getBoundingClientRect();
+            this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            // Update the picking ray with the camera and mouse position
+            this.raycaster.setFromCamera(this.mouse, this.camera);
+
+            // Calculate objects intersecting the picking ray
+            const clickableMeshes = this.meshes.map(m => m.mesh);
+            const intersects = this.raycaster.intersectObjects(clickableMeshes);
+
+            if (intersects.length > 0) {
+                const clickedMesh = intersects[0].object;
+                this.foldPlaneByIncrement(clickedMesh);
+            }
+        });
+    }
+
+    foldPlaneByIncrement(mesh) {
+        // Get current rotation or initialize
+        if (!mesh.userData.currentFoldAngle) {
+            mesh.userData.currentFoldAngle = 0;
+        }
+
+        // Increment by 45 degrees
+        const increment = Math.PI / 4; // 45 degrees in radians
+        mesh.userData.currentFoldAngle += increment;
+
+        // Animate to new rotation
+        gsap.to(mesh.rotation, {
+            x: mesh.userData.currentFoldAngle,
+            duration: 0.5,
+            ease: "power2.inOut"
+        });
+
+        console.log(`Folded panel ${mesh.userData.panelId} to ${(mesh.userData.currentFoldAngle * 180 / Math.PI).toFixed(0)} degrees`);
+    }
+
+    loadPDFAsTexture(pdfCanvas) {
+        console.log('Loading PDF as texture...');
+        
+        // Create texture from PDF canvas
+        this.pdfTexture = new THREE.CanvasTexture(pdfCanvas);
+        this.pdfTexture.needsUpdate = true;
+        
+        // Apply texture to all meshes
+        this.meshes.forEach(({ mesh }) => {
+            if (mesh.material) {
+                mesh.material.map = this.pdfTexture;
+                mesh.material.needsUpdate = true;
+            }
+        });
+        
+        console.log('PDF texture applied to all panels');
+        return { success: true };
     }
 
     build3DFromGeometry(geometryData) {
