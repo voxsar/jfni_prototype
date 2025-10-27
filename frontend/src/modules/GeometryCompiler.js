@@ -224,7 +224,7 @@ export class GeometryCompiler {
     
     splitPolygonByLine(polygonPoints, lineStart, lineEnd) {
         // Split a polygon by a line passing through it
-        // This is a simplified implementation
+        // This is a simplified implementation for a single straight crease line
         
         // Find intersection points between the line and polygon edges
         const intersections = [];
@@ -236,53 +236,87 @@ export class GeometryCompiler {
             
             const intersection = this.lineSegmentIntersection(lineStart, lineEnd, p1, p2);
             if (intersection) {
-                intersections.push({ point: intersection, edgeIndex: i });
+                intersections.push({ 
+                    point: intersection, 
+                    edgeIndex: i,
+                    t: this.getParameterT(p1, p2, intersection) 
+                });
             }
         }
         
-        // Need at least 2 intersections to split
-        if (intersections.length < 2) {
-            console.warn('Crease line does not properly intersect polygon boundary');
+        console.log(`Found ${intersections.length} intersections for crease line`);
+        
+        // Need exactly 2 intersections to split
+        if (intersections.length !== 2) {
+            console.warn('Crease line must intersect polygon boundary at exactly 2 points. Found:', intersections.length);
             return [];
         }
         
-        // Take first two intersections
+        // Sort intersections to maintain proper order
         const int1 = intersections[0];
         const int2 = intersections[1];
         
-        // Create two new polygons
+        // Create two new polygons by splitting at intersection points
         const panel1Points = [];
         const panel2Points = [];
         
-        // Build first panel: from int1 to int2 going one direction
-        panel1Points.push(...int1.point);
+        // Strategy: Walk around polygon, switching panels at each intersection
+        let currentPanel = panel1Points;
+        let vertexIdx = 0;
+        const visitedEdges = new Set();
         
-        let currentIdx = (int1.edgeIndex + 1) % numVertices;
-        while (currentIdx !== int2.edgeIndex + 1) {
-            panel1Points.push(polygonPoints[currentIdx * 2], polygonPoints[currentIdx * 2 + 1]);
-            currentIdx = (currentIdx + 1) % numVertices;
-            if (currentIdx === int1.edgeIndex) break; // Prevent infinite loop
+        // Start at first intersection's edge
+        vertexIdx = int1.edgeIndex;
+        
+        // Add first intersection point
+        currentPanel.push(...int1.point);
+        
+        // Walk from int1 to int2 along polygon boundary
+        let steps = 0;
+        while (steps < numVertices && vertexIdx !== int2.edgeIndex) {
+            vertexIdx = (vertexIdx + 1) % numVertices;
+            currentPanel.push(polygonPoints[vertexIdx * 2], polygonPoints[vertexIdx * 2 + 1]);
+            steps++;
         }
         
-        panel1Points.push(...int2.point);
-        panel1Points.push(...lineEnd);
-        panel1Points.push(...lineStart);
+        // Add second intersection
+        currentPanel.push(...int2.point);
         
-        // Build second panel: from int2 to int1 going other direction
-        panel2Points.push(...int2.point);
+        // Add crease line (from int2 to int1)
+        currentPanel.push(...lineEnd);
+        currentPanel.push(...lineStart);
         
-        currentIdx = (int2.edgeIndex + 1) % numVertices;
-        while (currentIdx !== int1.edgeIndex + 1) {
-            panel2Points.push(polygonPoints[currentIdx * 2], polygonPoints[currentIdx * 2 + 1]);
-            currentIdx = (currentIdx + 1) % numVertices;
-            if (currentIdx === int2.edgeIndex) break; // Prevent infinite loop
+        // Now create second panel: from int2, walk to int1
+        currentPanel = panel2Points;
+        currentPanel.push(...int2.point);
+        
+        vertexIdx = int2.edgeIndex;
+        steps = 0;
+        while (steps < numVertices && vertexIdx !== int1.edgeIndex) {
+            vertexIdx = (vertexIdx + 1) % numVertices;
+            currentPanel.push(polygonPoints[vertexIdx * 2], polygonPoints[vertexIdx * 2 + 1]);
+            steps++;
         }
         
-        panel2Points.push(...int1.point);
-        panel2Points.push(...lineStart);
-        panel2Points.push(...lineEnd);
+        currentPanel.push(...int1.point);
+        currentPanel.push(...lineStart);
+        currentPanel.push(...lineEnd);
+        
+        console.log(`Split polygon into 2 panels: ${panel1Points.length/2} and ${panel2Points.length/2} vertices`);
         
         return [panel1Points, panel2Points];
+    }
+    
+    getParameterT(p1, p2, point) {
+        // Get parameter t [0,1] for point on line segment from p1 to p2
+        const dx = p2[0] - p1[0];
+        const dy = p2[1] - p1[1];
+        
+        if (Math.abs(dx) > Math.abs(dy)) {
+            return (point[0] - p1[0]) / dx;
+        } else {
+            return (point[1] - p1[1]) / dy;
+        }
     }
     
     lineSegmentIntersection(line1Start, line1End, line2Start, line2End) {
