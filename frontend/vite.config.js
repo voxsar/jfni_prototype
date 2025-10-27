@@ -4,7 +4,8 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 3002,
-    cors: true
+    cors: true,
+	allowedHosts: ['.localhost', '.ngrok.io', '.com', 'jfnidemo.dev.artslabcreatives.com']
   },
   build: {
     outDir: 'dist',
