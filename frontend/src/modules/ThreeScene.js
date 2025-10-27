@@ -25,6 +25,7 @@ export class ThreeScene {
         this.pdfTexture = null;
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
+        this.wireframeMode = false; // Track wireframe state
         
         this.setupScene();
         this.setupLights();
@@ -246,34 +247,84 @@ export class ThreeScene {
         
         const { panels, hinges, embossMaps } = geometryData;
         
-        console.log(`Creating ${panels.length} merged panel(s)...`);
+        console.log(`Creating ${panels.length} panel(s) with ${hinges.length} hinge(s)...`);
         
-        // Create 3D panels
-        panels.forEach((panel, index) => {
-            const mesh = this.createPanelMesh(panel, index, panels.length);
+        if (panels.length === 1) {
+            // Single panel without subdivision - create as before
+            const mesh = this.createPanelMesh(panels[0], 0, 1);
             this.scene.add(mesh);
-            this.meshes.push({ mesh, panel, hinges: [] });
-            console.log(`Panel ${index} created:`, panel.id, 'Merged:', panel.isMerged || false);
-        });
+            this.meshes.push({ mesh, panel: panels[0], hinges: [] });
+            console.log('Single panel created (no crease subdivision)');
+        } else {
+            // Multiple panels - position them connected at hinges
+            this.createConnectedPanels(panels, hinges);
+        }
         
         // Store hinge data for animations
         this.hinges = hinges;
         this.embossMaps = embossMaps;
         
-        console.log('3D scene built with', this.meshes.length, 'merged panel(s)');
+        console.log('3D scene built with', this.meshes.length, 'panel(s)');
+    }
+    
+    createConnectedPanels(panels, hinges) {
+        // Create panels and position them so they're connected at hinge lines
+        // For simplicity with 2 panels: place them flat initially at the hinge line
+        
+        if (panels.length === 2 && hinges.length >= 1) {
+            // Two panels connected by a hinge
+            const hinge = hinges[0];
+            const panel1 = panels[0];
+            const panel2 = panels[1];
+            
+            // Create first panel at origin
+            const mesh1 = this.createPanelMesh(panel1, 0, 2);
+            this.scene.add(mesh1);
+            this.meshes.push({ mesh: mesh1, panel: panel1, hinges: [hinge], connectedPanel: 1 });
+            
+            // Create second panel positioned relative to first
+            const mesh2 = this.createPanelMesh(panel2, 1, 2);
+            
+            // Position mesh2 adjacent to mesh1 along the hinge line
+            // For now, keep them coplanar (can be folded later)
+            // The hinge axis determines the connection
+            this.scene.add(mesh2);
+            this.meshes.push({ mesh: mesh2, panel: panel2, hinges: [hinge], connectedPanel: 0 });
+            
+            // Store hinge axis for rotation
+            mesh2.userData.hingeAxis = hinge.axis;
+            mesh2.userData.hingeCenter = hinge.start; // Rotation center
+            
+            console.log('Created 2 connected panels with hinge');
+        } else {
+            // Multiple panels - place side by side for now
+            panels.forEach((panel, index) => {
+                const mesh = this.createPanelMesh(panel, index, panels.length);
+                
+                // Find hinges connected to this panel
+                const connectedHinges = hinges.filter(h => 
+                    h.panel1 === panel.id || h.panel2 === panel.id
+                );
+                
+                this.scene.add(mesh);
+                this.meshes.push({ mesh, panel, hinges: connectedHinges });
+            });
+            
+            console.log(`Created ${panels.length} panels with hinge connections`);
+        }
     }
 
     createPanelMesh(panel, index, totalPanels) {
         const vertices = panel.vertices;
         
-        console.log(`Creating mesh for panel ${index} with ${vertices.length} vertices, isMerged: ${panel.isMerged}`);
+        console.log(`Creating mesh for panel ${index} with ${vertices.length} vertices`);
         
-        // For merged panel, create geometry from actual vertices
-        if (panel.isMerged && vertices.length >= 3) {
+        // Create geometry from actual vertices if available
+        if (vertices && vertices.length >= 3) {
             return this.createPolygonMesh(panel, index);
         }
         
-        // Create simple rectangular geometry for regular panels
+        // Fallback: Create simple rectangular geometry for regular panels
         const width = 20;
         const height = 30;
         const geometry = new THREE.BoxGeometry(width, height, 0.5);
@@ -282,7 +333,8 @@ export class ThreeScene {
             color: 0xcccccc,
             metalness: 0.1,
             roughness: 0.8,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            wireframe: this.wireframeMode
         });
         
         const mesh = new THREE.Mesh(geometry, material);
@@ -341,13 +393,13 @@ export class ThreeScene {
             color: 0xcccccc,
             metalness: 0.1,
             roughness: 0.8,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            wireframe: this.wireframeMode
         });
         
         const mesh = new THREE.Mesh(geometry, material);
         mesh.position.set(0, 0, 0);
         mesh.userData.panelId = panel.id;
-        mesh.userData.isMerged = true;
         mesh.userData.panelBounds = panel.bounds; // Store bounds for UV mapping
         
         // Scale down to fit in view
@@ -355,6 +407,21 @@ export class ThreeScene {
         mesh.scale.set(scale, scale, scale);
         
         return mesh;
+    }
+    
+    toggleWireframe() {
+        this.wireframeMode = !this.wireframeMode;
+        
+        // Update all mesh materials
+        this.meshes.forEach(({ mesh }) => {
+            if (mesh.material) {
+                mesh.material.wireframe = this.wireframeMode;
+                mesh.material.needsUpdate = true;
+            }
+        });
+        
+        console.log('Wireframe mode:', this.wireframeMode ? 'ON' : 'OFF');
+        return this.wireframeMode;
     }
 
     setupPolygonUVMapping(geometry, panel) {

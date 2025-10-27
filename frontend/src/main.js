@@ -72,6 +72,12 @@ class DielineApp {
         document.getElementById('rotate-texture-ccw').addEventListener('click', () => this.rotateTextureCCW());
         document.getElementById('animate-fold').addEventListener('click', () => this.animateFold());
         document.getElementById('export-glb').addEventListener('click', () => this.exportGLB());
+        
+        // Wireframe toggle (if button exists)
+        const wireframeBtn = document.getElementById('toggle-wireframe');
+        if (wireframeBtn) {
+            wireframeBtn.addEventListener('click', () => this.toggleWireframe());
+        }
 
         // Listen for PDF zoom events from mouse wheel
         window.addEventListener('pdfzoom', (e) => {
@@ -403,6 +409,22 @@ class DielineApp {
             this.annotationLayer.setZoom(zoomLevel, dims.width, dims.height);
         }
         this.updateStatus(`Zoom reset to 100%`);
+    }
+    
+    toggleWireframe() {
+        if (!this.threeScene) {
+            this.updateStatus('Error: 3D scene not initialized');
+            return;
+        }
+        
+        const wireframeState = this.threeScene.toggleWireframe();
+        this.updateStatus(`Wireframe mode: ${wireframeState ? 'ON' : 'OFF'}`);
+        
+        // Update button state if it exists
+        const wireframeBtn = document.getElementById('toggle-wireframe');
+        if (wireframeBtn) {
+            wireframeBtn.classList.toggle('active', wireframeState);
+        }
     }
 
     async checkBackendConnection() {
