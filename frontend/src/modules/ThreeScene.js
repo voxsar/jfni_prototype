@@ -157,30 +157,34 @@ export class ThreeScene {
         
         const { panels, hinges, embossMaps } = geometryData;
         
-        console.log(`Creating ${panels.length} panels...`);
+        console.log(`Creating ${panels.length} merged panel(s)...`);
         
         // Create 3D panels
         panels.forEach((panel, index) => {
             const mesh = this.createPanelMesh(panel, index, panels.length);
             this.scene.add(mesh);
             this.meshes.push({ mesh, panel, hinges: [] });
-            console.log(`Panel ${index} created:`, panel.id);
+            console.log(`Panel ${index} created:`, panel.id, 'Merged:', panel.isMerged || false);
         });
         
         // Store hinge data for animations
         this.hinges = hinges;
         this.embossMaps = embossMaps;
         
-        console.log('3D scene built with', this.meshes.length, 'panels');
+        console.log('3D scene built with', this.meshes.length, 'merged panel(s)');
     }
 
     createPanelMesh(panel, index, totalPanels) {
         const vertices = panel.vertices;
         
-        console.log(`Creating mesh for panel ${index} with ${vertices.length} vertices`);
+        console.log(`Creating mesh for panel ${index} with ${vertices.length} vertices, isMerged: ${panel.isMerged}`);
         
-        // Create simple rectangular geometry for now
-        // In production, would create proper polygon geometry
+        // For merged panel, create geometry from actual vertices
+        if (panel.isMerged && vertices.length >= 3) {
+            return this.createPolygonMesh(panel, index);
+        }
+        
+        // Create simple rectangular geometry for regular panels
         const width = 20;
         const height = 30;
         const geometry = new THREE.BoxGeometry(width, height, 0.5);
@@ -198,6 +202,64 @@ export class ThreeScene {
         
         // Add UV mapping
         this.setupUVMapping(geometry);
+        
+        return mesh;
+    }
+
+    createPolygonMesh(panel, index) {
+        // Create a flat polygon mesh from vertices
+        const vertices = panel.vertices;
+        const shape = new THREE.Shape();
+        
+        // Start at first vertex
+        shape.moveTo(vertices[0][0] - panel.center[0], vertices[0][1] - panel.center[1]);
+        
+        // Add remaining vertices
+        for (let i = 1; i < vertices.length; i++) {
+            shape.lineTo(vertices[i][0] - panel.center[0], vertices[i][1] - panel.center[1]);
+        }
+        
+        // Close the shape
+        shape.closePath();
+        
+        // Add holes if present
+        if (panel.holes && panel.holes.length > 0) {
+            panel.holes.forEach(holePoints => {
+                const holePath = new THREE.Path();
+                for (let i = 0; i < holePoints.length; i += 2) {
+                    if (i === 0) {
+                        holePath.moveTo(holePoints[i] - panel.center[0], holePoints[i + 1] - panel.center[1]);
+                    } else {
+                        holePath.lineTo(holePoints[i] - panel.center[0], holePoints[i + 1] - panel.center[1]);
+                    }
+                }
+                shape.holes.push(holePath);
+            });
+        }
+        
+        // Create extruded geometry
+        const extrudeSettings = {
+            depth: 0.5,
+            bevelEnabled: false
+        };
+        
+        const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+        
+        const material = new THREE.MeshStandardMaterial({
+            color: 0xcccccc,
+            metalness: 0.1,
+            roughness: 0.8,
+            side: THREE.DoubleSide
+        });
+        
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(0, 0, 0);
+        mesh.userData.panelId = panel.id;
+        mesh.userData.isMerged = true;
+        
+        // Scale down to fit in view
+        const scale = 0.1;
+        mesh.scale.set(scale, scale, scale);
         
         return mesh;
     }

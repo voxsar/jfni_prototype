@@ -15,10 +15,13 @@ export class GeometryCompiler {
         this.hinges = [];
         this.embossMaps = [];
 
-        // Extract cut lines to define panels
+        // Extract cut lines to define a single merged panel
         const cutLines = annotations.cut || [];
         console.log('Cut lines:', cutLines.length);
-        this.panels = this.extractPanels(cutLines, canvasWidth, canvasHeight);
+        
+        // Merge all cutlines into a single boundary
+        const mergedBoundary = this.mergeCutlines(cutLines, canvasWidth, canvasHeight);
+        this.panels = [this.createSinglePanel(mergedBoundary, canvasWidth, canvasHeight)];
 
         // Extract crease lines to define hinges
         const creaseLines = annotations.crease || [];
@@ -30,12 +33,89 @@ export class GeometryCompiler {
         console.log('Emboss lines:', embossLines.length);
         this.embossMaps = this.extractEmbossMaps(embossLines);
 
-        console.log('Compiled:', this.panels.length, 'panels,', this.hinges.length, 'hinges');
+        console.log('Compiled: 1 merged panel,', this.hinges.length, 'hinges');
         
         return {
             panels: this.panels,
             hinges: this.hinges,
             embossMaps: this.embossMaps
+        };
+    }
+
+    mergeCutlines(cutLines, width, height) {
+        // Merge multiple cutlines using boolean union operations
+        // For now, we'll use a simplified approach: find the outer boundary
+        
+        if (cutLines.length === 0) {
+            // Return default boundary (entire canvas)
+            return {
+                points: [0, 0, width, 0, width, height, 0, height],
+                holes: []
+            };
+        }
+
+        if (cutLines.length === 1) {
+            // Single cutline - use it as the boundary
+            return {
+                points: cutLines[0].points,
+                holes: []
+            };
+        }
+
+        // Multiple cutlines - merge them
+        // This is a simplified implementation
+        // In production, you'd use a proper computational geometry library like clipper-lib
+        
+        // Find the outermost boundary
+        let allPoints = [];
+        cutLines.forEach(line => {
+            allPoints = allPoints.concat(line.points);
+        });
+
+        // Calculate bounding polygon (convex hull would be better)
+        const outerBoundary = this.calculateBoundingPolygon(allPoints);
+        
+        // Identify inner cutlines as holes
+        const holes = cutLines.slice(1).map(line => line.points);
+
+        return {
+            points: outerBoundary,
+            holes: holes
+        };
+    }
+
+    calculateBoundingPolygon(points) {
+        // Find min/max to create bounding rectangle
+        // In production, use convex hull algorithm
+        let minX = Infinity, minY = Infinity;
+        let maxX = -Infinity, maxY = -Infinity;
+
+        for (let i = 0; i < points.length; i += 2) {
+            minX = Math.min(minX, points[i]);
+            maxX = Math.max(maxX, points[i]);
+            minY = Math.min(minY, points[i + 1]);
+            maxY = Math.max(maxY, points[i + 1]);
+        }
+
+        return [
+            minX, minY,
+            maxX, minY,
+            maxX, maxY,
+            minX, maxY
+        ];
+    }
+
+    createSinglePanel(boundary, width, height) {
+        // Create a single merged panel from the boundary
+        const vertices = this.pointsToVertices(boundary.points);
+        const center = this.calculateCenter(boundary.points);
+
+        return {
+            id: 'panel_merged',
+            vertices: vertices,
+            center: center,
+            holes: boundary.holes || [],
+            isMerged: true
         };
     }
 
@@ -60,20 +140,11 @@ export class GeometryCompiler {
             return panels;
         }
 
-        // More sophisticated panel extraction would go here
-        // For now, create example panels based on cut lines
-        cutLines.forEach((line, index) => {
-            const points = line.points;
-            if (points.length >= 4) {
-                panels.push({
-                    id: `panel_${index}`,
-                    vertices: this.pointsToVertices(points),
-                    center: this.calculateCenter(points)
-                });
-            }
-        });
+        // Create a single merged panel
+        const mergedBoundary = this.mergeCutlines(cutLines, width, height);
+        panels.push(this.createSinglePanel(mergedBoundary, width, height));
 
-        console.log('Extracted', panels.length, 'panels');
+        console.log('Extracted 1 merged panel');
         return panels;
     }
 

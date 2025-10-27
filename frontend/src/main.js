@@ -31,6 +31,24 @@ class DielineApp {
         document.getElementById('zoom-out').addEventListener('click', () => this.zoomOut());
         document.getElementById('zoom-reset').addEventListener('click', () => this.resetZoom());
 
+        // Unit toggle
+        const unitToggle = document.getElementById('unit-toggle');
+        if (unitToggle) {
+            unitToggle.addEventListener('click', () => this.toggleUnits());
+        }
+
+        // Cutoff highlight toggle
+        const cutoffToggle = document.getElementById('cutoff-toggle');
+        if (cutoffToggle) {
+            cutoffToggle.addEventListener('click', () => this.toggleCutoffHighlight());
+        }
+
+        // Validate creases button
+        const validateCreases = document.getElementById('validate-creases');
+        if (validateCreases) {
+            validateCreases.addEventListener('click', () => this.validateCreases());
+        }
+
         // Annotation tools
         document.getElementById('cut-tool').addEventListener('click', () => this.setTool('cut'));
         document.getElementById('crease-tool').addEventListener('click', () => this.setTool('crease'));
@@ -91,7 +109,64 @@ class DielineApp {
             this.annotationLayer.setTool(tool);
         }
         
-        this.updateStatus(`Tool: ${tool}`);
+        const toolName = tool === 'cut' ? 'Cut Line (Polygon Mode)' : 
+                        tool === 'crease' ? 'Crease' :
+                        tool === 'perf' ? 'Perforation' : 'Emboss';
+        this.updateStatus(`Tool: ${toolName}`);
+    }
+
+    toggleUnits() {
+        if (!this.annotationLayer) return;
+        
+        const currentUnits = this.annotationLayer.units;
+        const newUnits = currentUnits === 'inches' ? 'cm' : 'inches';
+        this.annotationLayer.setUnits(newUnits);
+        
+        const unitToggle = document.getElementById('unit-toggle');
+        if (unitToggle) {
+            unitToggle.textContent = newUnits === 'inches' ? '📏 Inches' : '📏 CM';
+        }
+        
+        this.updateStatus(`Units: ${newUnits}`);
+    }
+
+    toggleCutoffHighlight() {
+        if (!this.annotationLayer) {
+            this.updateStatus('Error: Load a PDF first');
+            return;
+        }
+        
+        const isActive = this.annotationLayer.toggleCutoffHighlight();
+        const cutoffToggle = document.getElementById('cutoff-toggle');
+        if (cutoffToggle) {
+            cutoffToggle.classList.toggle('active', isActive);
+        }
+        
+        this.updateStatus(isActive ? 'Cutoff areas highlighted' : 'Cutoff highlight disabled');
+    }
+
+    validateCreases() {
+        if (!this.annotationLayer) {
+            this.updateStatus('Error: Load a PDF first');
+            return;
+        }
+
+        const results = this.annotationLayer.validateAllCreases();
+        
+        if (results.total === 0) {
+            this.updateStatus('No crease lines to validate');
+            return;
+        }
+
+        const message = `Validated ${results.total} creases: ${results.valid} valid, ${results.invalid} invalid`;
+        this.updateStatus(message);
+        
+        if (results.invalid > 0) {
+            console.warn('Crease validation warnings:', results.warnings);
+            alert(`Found ${results.invalid} invalid crease line(s):\n\n${results.warnings.join('\n')}`);
+        } else {
+            alert('All crease lines are valid!');
+        }
     }
 
     async detectLines() {
