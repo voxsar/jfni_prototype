@@ -66,6 +66,10 @@ class DielineApp {
         document.getElementById('compile-geometry').addEventListener('click', () => this.compileGeometry());
         document.getElementById('build-3d').addEventListener('click', () => this.build3D());
         document.getElementById('load-texture').addEventListener('click', () => this.loadPDFTexture());
+        document.getElementById('flip-texture-h').addEventListener('click', () => this.flipTextureHorizontal());
+        document.getElementById('flip-texture-v').addEventListener('click', () => this.flipTextureVertical());
+        document.getElementById('rotate-texture-cw').addEventListener('click', () => this.rotateTextureCW());
+        document.getElementById('rotate-texture-ccw').addEventListener('click', () => this.rotateTextureCCW());
         document.getElementById('animate-fold').addEventListener('click', () => this.animateFold());
         document.getElementById('export-glb').addEventListener('click', () => this.exportGLB());
 
@@ -321,6 +325,42 @@ class DielineApp {
             console.error('GLB export failed:', error);
             this.updateStatus(`Export error: ${error.message}`);
         }
+    }
+
+    flipTextureHorizontal() {
+        if (!this.threeScene.pdfTexture) {
+            this.updateStatus('Error: Load PDF texture first');
+            return;
+        }
+        this.threeScene.flipTextureHorizontal();
+        this.updateStatus('Texture flipped horizontally');
+    }
+
+    flipTextureVertical() {
+        if (!this.threeScene.pdfTexture) {
+            this.updateStatus('Error: Load PDF texture first');
+            return;
+        }
+        this.threeScene.flipTextureVertical();
+        this.updateStatus('Texture flipped vertically');
+    }
+
+    rotateTextureCW() {
+        if (!this.threeScene.pdfTexture) {
+            this.updateStatus('Error: Load PDF texture first');
+            return;
+        }
+        this.threeScene.rotateTexture(90);
+        this.updateStatus('Texture rotated 90° clockwise');
+    }
+
+    rotateTextureCCW() {
+        if (!this.threeScene.pdfTexture) {
+            this.updateStatus('Error: Load PDF texture first');
+            return;
+        }
+        this.threeScene.rotateTexture(-90);
+        this.updateStatus('Texture rotated 90° counter-clockwise');
     }
 
     zoomIn() {

@@ -59,6 +59,7 @@ export class ThreeScene {
     }
 
     setupClickHandler() {
+        // Left-click handler: fold in positive direction
         this.canvas.addEventListener('click', (event) => {
             // Calculate mouse position in normalized device coordinates (-1 to +1)
             const rect = this.canvas.getBoundingClientRect();
@@ -74,12 +75,34 @@ export class ThreeScene {
 
             if (intersects.length > 0) {
                 const clickedMesh = intersects[0].object;
-                this.foldPlaneByIncrement(clickedMesh);
+                this.foldPlaneByIncrement(clickedMesh, 1); // Positive direction
+            }
+        });
+
+        // Right-click handler: fold in negative direction
+        this.canvas.addEventListener('contextmenu', (event) => {
+            event.preventDefault(); // Prevent default context menu
+            
+            // Calculate mouse position in normalized device coordinates (-1 to +1)
+            const rect = this.canvas.getBoundingClientRect();
+            this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            // Update the picking ray with the camera and mouse position
+            this.raycaster.setFromCamera(this.mouse, this.camera);
+
+            // Calculate objects intersecting the picking ray
+            const clickableMeshes = this.meshes.map(m => m.mesh);
+            const intersects = this.raycaster.intersectObjects(clickableMeshes);
+
+            if (intersects.length > 0) {
+                const clickedMesh = intersects[0].object;
+                this.foldPlaneByIncrement(clickedMesh, -1); // Negative direction
             }
         });
     }
 
-    foldPlaneByIncrement(mesh) {
+    foldPlaneByIncrement(mesh, direction = 1) {
         // Get current rotation or initialize
         if (!mesh.userData.currentFoldAngle) {
             mesh.userData.currentFoldAngle = 0;
@@ -93,8 +116,8 @@ export class ThreeScene {
             rotationAxis = mesh.userData.hingeAxis;
         }
 
-        // Increment by 45 degrees
-        const increment = Math.PI / 4; // 45 degrees in radians
+        // Increment by 45 degrees in the specified direction
+        const increment = (Math.PI / 4) * direction; // 45 degrees in radians, multiplied by direction
         mesh.userData.currentFoldAngle += increment;
 
         // Animate to new rotation on the appropriate axis
@@ -107,7 +130,8 @@ export class ThreeScene {
             ease: "power2.inOut"
         });
 
-        console.log(`Folded panel ${mesh.userData.panelId} around ${rotationAxis}-axis to ${(mesh.userData.currentFoldAngle * 180 / Math.PI).toFixed(0)} degrees`);
+        const directionText = direction > 0 ? 'positive' : 'negative';
+        console.log(`Folded panel ${mesh.userData.panelId} around ${rotationAxis}-axis in ${directionText} direction to ${(mesh.userData.currentFoldAngle * 180 / Math.PI).toFixed(0)} degrees`);
     }
 
     loadPDFAsTexture(pdfCanvas) {
@@ -129,6 +153,14 @@ export class ThreeScene {
         this.pdfTexture = new THREE.CanvasTexture(pdfCanvas);
         this.pdfTexture.needsUpdate = true;
         
+        // Initialize texture transformation properties if not exists
+        if (!this.pdfTexture.userData) {
+            this.pdfTexture.userData = {};
+        }
+        this.pdfTexture.userData.rotation = 0;
+        this.pdfTexture.userData.flipH = false;
+        this.pdfTexture.userData.flipV = false;
+        
         // Apply texture to all meshes and count successful applications
         let texturedCount = 0;
         this.meshes.forEach(({ mesh }) => {
@@ -146,6 +178,63 @@ export class ThreeScene {
             console.error('Failed to apply texture to any panels');
             return { success: false, error: 'No valid materials found' };
         }
+    }
+
+    flipTextureHorizontal() {
+        if (!this.pdfTexture) return;
+        
+        // Toggle horizontal flip
+        this.pdfTexture.repeat.x *= -1;
+        this.pdfTexture.offset.x = this.pdfTexture.repeat.x < 0 ? 1 : 0;
+        this.pdfTexture.needsUpdate = true;
+        
+        // Update materials
+        this.meshes.forEach(({ mesh }) => {
+            if (mesh.material) {
+                mesh.material.needsUpdate = true;
+            }
+        });
+        
+        console.log('Texture flipped horizontally');
+    }
+
+    flipTextureVertical() {
+        if (!this.pdfTexture) return;
+        
+        // Toggle vertical flip
+        this.pdfTexture.repeat.y *= -1;
+        this.pdfTexture.offset.y = this.pdfTexture.repeat.y < 0 ? 1 : 0;
+        this.pdfTexture.needsUpdate = true;
+        
+        // Update materials
+        this.meshes.forEach(({ mesh }) => {
+            if (mesh.material) {
+                mesh.material.needsUpdate = true;
+            }
+        });
+        
+        console.log('Texture flipped vertically');
+    }
+
+    rotateTexture(degrees) {
+        if (!this.pdfTexture) return;
+        
+        // Convert degrees to radians and add to current rotation
+        const radians = (degrees * Math.PI) / 180;
+        this.pdfTexture.rotation += radians;
+        
+        // Set the center point for rotation to be the middle of the texture
+        this.pdfTexture.center.set(0.5, 0.5);
+        this.pdfTexture.needsUpdate = true;
+        
+        // Update materials
+        this.meshes.forEach(({ mesh }) => {
+            if (mesh.material) {
+                mesh.material.needsUpdate = true;
+            }
+        });
+        
+        console.log(`Texture rotated ${degrees} degrees`);
     }
 
     build3DFromGeometry(geometryData) {
@@ -245,6 +334,9 @@ export class ThreeScene {
         
         const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
         
+        // Generate proper UV mapping for texture based on panel bounds
+        this.setupPolygonUVMapping(geometry, panel);
+        
         const material = new THREE.MeshStandardMaterial({
             color: 0xcccccc,
             metalness: 0.1,
@@ -256,12 +348,46 @@ export class ThreeScene {
         mesh.position.set(0, 0, 0);
         mesh.userData.panelId = panel.id;
         mesh.userData.isMerged = true;
+        mesh.userData.panelBounds = panel.bounds; // Store bounds for UV mapping
         
         // Scale down to fit in view
         const scale = 0.1;
         mesh.scale.set(scale, scale, scale);
         
         return mesh;
+    }
+
+    setupPolygonUVMapping(geometry, panel) {
+        // Generate UV coordinates based on the panel's position in the original PDF canvas
+        // This ensures the texture maps correctly to the cut line area
+        
+        const positions = geometry.attributes.position;
+        const uvs = [];
+        
+        // Get panel bounds in canvas coordinates
+        const bounds = panel.bounds || { minX: 0, minY: 0, maxX: 800, maxY: 600 };
+        const canvasWidth = panel.canvasWidth || 800;
+        const canvasHeight = panel.canvasHeight || 600;
+        
+        // For each vertex, calculate UV coordinates based on its position
+        for (let i = 0; i < positions.count; i++) {
+            // Get vertex position in local coordinates (relative to panel center)
+            const localX = positions.getX(i);
+            const localY = positions.getY(i);
+            
+            // Convert to canvas coordinates by adding panel center
+            const canvasX = localX + panel.center[0];
+            const canvasY = localY + panel.center[1];
+            
+            // Map canvas position to UV coordinates (0-1 range)
+            // Normalize by canvas dimensions
+            const u = canvasX / canvasWidth;
+            const v = 1.0 - (canvasY / canvasHeight); // Flip Y coordinate for correct texture orientation
+            
+            uvs.push(u, v);
+        }
+        
+        geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     }
 
     setupUVMapping(geometry) {

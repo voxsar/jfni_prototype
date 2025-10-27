@@ -84,9 +84,8 @@ export class GeometryCompiler {
         };
     }
 
-    calculateBoundingPolygon(points) {
-        // Find min/max to create bounding rectangle
-        // In production, use convex hull algorithm
+    calculateBounds(points) {
+        // Calculate bounding box for points
         let minX = Infinity, minY = Infinity;
         let maxX = -Infinity, maxY = -Infinity;
 
@@ -97,11 +96,19 @@ export class GeometryCompiler {
             maxY = Math.max(maxY, points[i + 1]);
         }
 
+        return { minX, minY, maxX, maxY };
+    }
+
+    calculateBoundingPolygon(points) {
+        // Find min/max to create bounding rectangle
+        // In production, use convex hull algorithm
+        const bounds = this.calculateBounds(points);
+
         return [
-            minX, minY,
-            maxX, minY,
-            maxX, maxY,
-            minX, maxY
+            bounds.minX, bounds.minY,
+            bounds.maxX, bounds.minY,
+            bounds.maxX, bounds.maxY,
+            bounds.minX, bounds.maxY
         ];
     }
 
@@ -109,13 +116,17 @@ export class GeometryCompiler {
         // Create a single merged panel from the boundary
         const vertices = this.pointsToVertices(boundary.points);
         const center = this.calculateCenter(boundary.points);
+        const bounds = this.calculateBounds(boundary.points);
 
         return {
             id: 'panel_merged',
             vertices: vertices,
             center: center,
             holes: boundary.holes || [],
-            isMerged: true
+            isMerged: true,
+            bounds: bounds,
+            canvasWidth: width,
+            canvasHeight: height
         };
     }
 

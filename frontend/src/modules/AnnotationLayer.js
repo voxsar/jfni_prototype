@@ -761,10 +761,11 @@ export class AnnotationLayer {
         let startConnected = false;
         let endConnected = false;
 
-        // Check if both ends connect to a cut line
+        // Check if both ends connect to a cut line (vertices or segments)
         for (const cutLine of cutLines) {
             const cutPoints = cutLine.points;
-            // Iterate correctly by 2, ensuring we don't go out of bounds
+            
+            // Check vertices
             for (let i = 0; i < cutPoints.length; i += 2) {
                 // Make sure we have both x and y coordinates
                 if (i + 1 >= cutPoints.length) break;
@@ -776,6 +777,32 @@ export class AnnotationLayer {
                 }
                 if (!endConnected && this.pointDistance(endPoint, cutPoint) < tolerance) {
                     endConnected = true;
+                }
+                
+                if (startConnected && endConnected) {
+                    return { valid: true, message: 'Crease connects to cut lines' };
+                }
+            }
+
+            // Also check line segments (not just vertices)
+            for (let i = 0; i < cutPoints.length - 2; i += 2) {
+                if (i + 3 >= cutPoints.length) break;
+                
+                const p1 = { x: cutPoints[i], y: cutPoints[i + 1] };
+                const p2 = { x: cutPoints[i + 2], y: cutPoints[i + 3] };
+                
+                if (!startConnected) {
+                    const nearestOnSegment = this.nearestPointOnLineSegment(startPoint, p1, p2);
+                    if (this.pointDistance(startPoint, nearestOnSegment) < tolerance) {
+                        startConnected = true;
+                    }
+                }
+                
+                if (!endConnected) {
+                    const nearestOnSegment = this.nearestPointOnLineSegment(endPoint, p1, p2);
+                    if (this.pointDistance(endPoint, nearestOnSegment) < tolerance) {
+                        endConnected = true;
+                    }
                 }
                 
                 if (startConnected && endConnected) {
