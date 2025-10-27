@@ -30,9 +30,21 @@ export class AnnotationLayer {
         this.units = 'inches';  // Default unit system
         this.pixelsPerUnit = 96;  // 96 pixels per inch (standard DPI)
         this.cutoffAreas = [];  // Track cut-off areas
+        this.keyboardHandler = null;  // Store reference for cleanup
 
         this.setupEventHandlers();
         this.setupContextMenu();
+    }
+
+    destroy() {
+        // Cleanup keyboard event listener
+        if (this.keyboardHandler) {
+            document.removeEventListener('keydown', this.keyboardHandler);
+        }
+        // Cleanup stage
+        if (this.stage) {
+            this.stage.destroy();
+        }
     }
 
     resize(width, height) {
@@ -214,7 +226,7 @@ export class AnnotationLayer {
         });
 
         // Keyboard shortcuts for polygon mode
-        document.addEventListener('keydown', (e) => {
+        this.keyboardHandler = (e) => {
             if (this.isPolygonMode) {
                 if (e.key === 'Escape') {
                     // Cancel polygon
@@ -232,7 +244,8 @@ export class AnnotationLayer {
                     this.finishPolygon();
                 }
             }
-        });
+        };
+        document.addEventListener('keydown', this.keyboardHandler);
     }
 
     addLineInteractivity(line) {
@@ -625,7 +638,11 @@ export class AnnotationLayer {
         // Check if both ends connect to a cut line
         for (const cutLine of cutLines) {
             const cutPoints = cutLine.points;
-            for (let i = 0; i < cutPoints.length - 1; i += 2) {
+            // Iterate correctly by 2, ensuring we don't go out of bounds
+            for (let i = 0; i < cutPoints.length; i += 2) {
+                // Make sure we have both x and y coordinates
+                if (i + 1 >= cutPoints.length) break;
+                
                 const cutPoint = { x: cutPoints[i], y: cutPoints[i + 1] };
                 
                 if (!startConnected && this.pointDistance(startPoint, cutPoint) < tolerance) {
@@ -714,12 +731,21 @@ export class AnnotationLayer {
             fontSize: 20,
             fill: '#ffaa00',
             name: 'validation-warning',
-            listening: false
+            listening: true
         });
+        
+        // Add title attribute for tooltip
+        warningIcon.setAttr('title', message);
         
         warningIcon.on('mouseenter', () => {
             // Show tooltip with warning message
-            console.log('Validation warning:', message);
+            warningIcon.fontSize(24);
+            this.layer.batchDraw();
+        });
+        
+        warningIcon.on('mouseleave', () => {
+            warningIcon.fontSize(20);
+            this.layer.batchDraw();
         });
         
         this.layer.add(warningIcon);
