@@ -20,22 +20,18 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy composer files
-COPY composer.json composer.lock ./
-
-# Install dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
-
-# Copy application
+# Copy application files
 COPY . .
+
+# Install dependencies if composer.lock exists
+RUN if [ -f composer.lock ]; then \
+        composer install --no-dev --optimize-autoloader --no-interaction; \
+    fi
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 775 /var/www/html/storage \
     && chmod -R 775 /var/www/html/bootstrap/cache
-
-# Create symbolic link for storage
-RUN php artisan storage:link || true
 
 # Configure nginx
 COPY docker/nginx.conf /etc/nginx/sites-available/default
@@ -47,3 +43,4 @@ RUN chmod +x /start.sh
 EXPOSE 3003
 
 CMD ["/start.sh"]
+

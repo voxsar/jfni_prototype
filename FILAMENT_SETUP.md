@@ -1,6 +1,8 @@
 # FilamentPHP Admin Panel Setup Guide
 
-This guide shows how to add FilamentPHP admin panel to the Dieline Folding App backend.
+> **✅ ALREADY INSTALLED:** FilamentPHP 3.3 is now pre-installed in this Laravel backend! This guide shows you how to use it and create resources.
+
+This guide shows how to use the FilamentPHP admin panel in the Dieline Folding App backend.
 
 ## What is FilamentPHP?
 
@@ -12,46 +14,55 @@ FilamentPHP is a modern admin panel and form builder for Laravel applications. I
 - File uploads
 - Relationships handling
 
-## Prerequisites
+## Current Installation Status
 
-- Laravel backend running
-- Composer installed
+✅ **Completed:**
+- Laravel 10 installed
+- FilamentPHP 3.3 installed
+- Admin panel configured at `/admin`
 - Database configured (MySQL from docker-compose.yml)
 
-## Installation Steps
+⏳ **Next Steps:**
+- Create admin user
+- Create Project resource
+- Customize dashboard
 
-### 1. Install FilamentPHP
+## Getting Started
 
+### 1. Access the Admin Panel
+
+The admin panel is available at:
+- Docker: http://localhost/admin or http://localhost:3003/admin
+- Custom domain: http://backend.jfni.artslabcreatives.com/admin
+
+### 2. Create Admin User
+
+Using Docker:
+```bash
+docker-compose exec backend php artisan make:filament-user
+```
+
+Or locally:
 ```bash
 cd backend
-composer require filament/filament:"^3.0"
-```
-
-### 2. Install Filament Panels
-
-```bash
-php artisan filament:install --panels
-```
-
-This creates:
-- Admin panel at `/admin`
-- Admin user authentication
-- Dashboard
-
-### 3. Create Admin User
-
-```bash
 php artisan make:filament-user
 ```
 
 Enter details:
 - Name: Admin
 - Email: admin@example.com
-- Password: password (change this!)
+- Password: (choose a strong password)
 
-### 4. Create Project Resource
+### 3. Create Project Resource
 
+Using Docker:
 ```bash
+docker-compose exec backend php artisan make:filament-resource Project
+```
+
+Or locally:
+```bash
+cd backend
 php artisan make:filament-resource Project
 ```
 
@@ -62,7 +73,7 @@ This generates:
   - CreateProject.php
   - EditProject.php
 
-### 5. Configure Project Resource
+### 4. Configure Project Resource
 
 Edit `app/Filament/Resources/ProjectResource.php`:
 
