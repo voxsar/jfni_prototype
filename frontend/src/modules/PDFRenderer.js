@@ -1,7 +1,7 @@
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+// Configure PDF.js worker - use local worker from public directory
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.js';
 
 export class PDFRenderer {
     constructor(canvasId) {
