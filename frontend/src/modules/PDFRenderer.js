@@ -161,8 +161,19 @@ export class PDFRenderer {
         }, { passive: false });
 
         // Prevent context menu on middle click
-        container.addEventListener('contextmenu', (e) => {
+        let middleClickActive = false;
+        container.addEventListener('mousedown', (e) => {
             if (e.button === 1) {
+                middleClickActive = true;
+            }
+        });
+        container.addEventListener('mouseup', (e) => {
+            if (e.button === 1) {
+                setTimeout(() => { middleClickActive = false; }, 100);
+            }
+        });
+        container.addEventListener('contextmenu', (e) => {
+            if (middleClickActive) {
                 e.preventDefault();
             }
         });

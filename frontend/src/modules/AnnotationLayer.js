@@ -235,7 +235,7 @@ export class AnnotationLayer {
                 transition: background 0.2s;
             `;
             
-            return `<div class="menu-item" data-action="${item.type}" style="${style}">${item.label}</div>`;
+            return `<div class="menu-item" data-action="${item.type}" data-disabled="${item.disabled || false}" style="${style}">${item.label}</div>`;
         }).join('');
 
         // Position menu
@@ -246,10 +246,11 @@ export class AnnotationLayer {
         // Add event listeners to menu items
         menu.querySelectorAll('.menu-item').forEach(item => {
             const action = item.getAttribute('data-action');
+            const disabled = item.getAttribute('data-disabled') === 'true';
             if (!action) return;
 
             item.addEventListener('mouseenter', (e) => {
-                if (!item.style.cursor.includes('not-allowed')) {
+                if (!disabled) {
                     e.target.style.background = '#3a3a3a';
                 }
             });
@@ -260,7 +261,7 @@ export class AnnotationLayer {
 
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (item.style.cursor.includes('not-allowed')) return;
+                if (disabled) return;
 
                 if (action === 'delete') {
                     this.deleteLine(line);
