@@ -371,14 +371,18 @@ export class ThreeScene {
         
         // For each vertex, calculate UV coordinates based on its position
         for (let i = 0; i < positions.count; i++) {
-            const x = positions.getX(i) + panel.center[0];
-            const y = positions.getY(i) + panel.center[1];
+            // Get vertex position in local coordinates (relative to panel center)
+            const localX = positions.getX(i);
+            const localY = positions.getY(i);
             
-            // Map position to UV coordinates (0-1 range)
-            // X: map from panel bounds to canvas width
-            // Y: map from panel bounds to canvas height (flip Y for texture)
-            const u = x / canvasWidth;
-            const v = 1.0 - (y / canvasHeight); // Flip Y coordinate for correct texture orientation
+            // Convert to canvas coordinates by adding panel center
+            const canvasX = localX + panel.center[0];
+            const canvasY = localY + panel.center[1];
+            
+            // Map canvas position to UV coordinates (0-1 range)
+            // Normalize by canvas dimensions
+            const u = canvasX / canvasWidth;
+            const v = 1.0 - (canvasY / canvasHeight); // Flip Y coordinate for correct texture orientation
             
             uvs.push(u, v);
         }

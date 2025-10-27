@@ -84,9 +84,8 @@ export class GeometryCompiler {
         };
     }
 
-    calculateBoundingPolygon(points) {
-        // Find min/max to create bounding rectangle
-        // In production, use convex hull algorithm
+    calculateBounds(points) {
+        // Calculate bounding box for points
         let minX = Infinity, minY = Infinity;
         let maxX = -Infinity, maxY = -Infinity;
 
@@ -97,11 +96,19 @@ export class GeometryCompiler {
             maxY = Math.max(maxY, points[i + 1]);
         }
 
+        return { minX, minY, maxX, maxY };
+    }
+
+    calculateBoundingPolygon(points) {
+        // Find min/max to create bounding rectangle
+        // In production, use convex hull algorithm
+        const bounds = this.calculateBounds(points);
+
         return [
-            minX, minY,
-            maxX, minY,
-            maxX, maxY,
-            minX, maxY
+            bounds.minX, bounds.minY,
+            bounds.maxX, bounds.minY,
+            bounds.maxX, bounds.maxY,
+            bounds.minX, bounds.maxY
         ];
     }
 
@@ -205,21 +212,6 @@ export class GeometryCompiler {
         }
         
         return [sumX / count, sumY / count];
-    }
-
-    calculateBounds(points) {
-        // Calculate bounding box for points
-        let minX = Infinity, minY = Infinity;
-        let maxX = -Infinity, maxY = -Infinity;
-
-        for (let i = 0; i < points.length; i += 2) {
-            minX = Math.min(minX, points[i]);
-            maxX = Math.max(maxX, points[i]);
-            minY = Math.min(minY, points[i + 1]);
-            maxY = Math.max(maxY, points[i + 1]);
-        }
-
-        return { minX, minY, maxX, maxY };
     }
 
     calculateAxis(points) {
