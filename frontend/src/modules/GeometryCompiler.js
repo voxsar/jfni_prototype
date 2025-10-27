@@ -282,9 +282,8 @@ export class GeometryCompiler {
         // Add second intersection
         currentPanel.push(...int2.point);
         
-        // Add crease line (from int2 to int1)
-        currentPanel.push(...lineEnd);
-        currentPanel.push(...lineStart);
+        // Close the panel by going back to the first intersection
+        // (Don't use lineStart/lineEnd as they may extend beyond the polygon)
         
         // Now create second panel: from int2, walk to int1
         currentPanel = panel2Points;
@@ -299,8 +298,8 @@ export class GeometryCompiler {
         }
         
         currentPanel.push(...int1.point);
-        currentPanel.push(...lineStart);
-        currentPanel.push(...lineEnd);
+        // Close the panel by going back to the second intersection
+        // (Don't use lineStart/lineEnd as they may extend beyond the polygon)
         
         console.log(`Split polygon into 2 panels: ${panel1Points.length/2} and ${panel2Points.length/2} vertices`);
         
