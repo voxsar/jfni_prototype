@@ -2,22 +2,39 @@
 export class LineDetector {
     constructor() {
         this.cvReady = false;
+        this.cvReadyPromise = new Promise((resolve) => {
+            this.cvReadyResolve = resolve;
+        });
         this.initOpenCV();
     }
 
     initOpenCV() {
         // OpenCV.js needs to be loaded from CDN
-        if (typeof cv !== 'undefined') {
+        if (typeof cv !== 'undefined' && cv.Mat) {
+            // OpenCV is already loaded and initialized
             this.cvReady = true;
+            this.cvReadyResolve();
             console.log('OpenCV.js ready');
+        } else if (typeof cv !== 'undefined') {
+            // OpenCV script loaded but not initialized yet
+            console.log('Waiting for OpenCV.js to initialize...');
+            cv['onRuntimeInitialized'] = () => {
+                this.cvReady = true;
+                this.cvReadyResolve();
+                console.log('OpenCV.js ready');
+            };
         } else {
+            // OpenCV script not loaded yet
             console.log('Loading OpenCV.js...');
-            // Will be loaded via script tag in HTML or dynamically
+            // Will be loaded via script tag in HTML
             setTimeout(() => this.initOpenCV(), 100);
         }
     }
 
     async detectLines(canvas) {
+        // Wait for OpenCV to be ready
+        await this.cvReadyPromise;
+        
         if (!this.cvReady) {
             console.warn('OpenCV not ready yet');
             return [];
