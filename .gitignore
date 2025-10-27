@@ -44,3 +44,23 @@ backend/bootstrap/cache/*
 # Temporary files
 /tmp/
 *.tmp
+
+# Laravel
+backend/vendor/
+backend/node_modules/
+backend/.env
+backend/.env.backup
+backend/.phpunit.result.cache
+backend/Homestead.json
+backend/Homestead.yaml
+backend/npm-debug.log
+backend/yarn-error.log
+backend/storage/*.key
+backend/storage/app/public
+backend/storage/framework/cache/
+backend/storage/framework/sessions/
+backend/storage/framework/views/
+backend/storage/logs/
+
+# Keep old backend for reference temporarily
+backend.old/

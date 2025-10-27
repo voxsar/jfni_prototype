@@ -1,5 +1,7 @@
 # Dieline Folding Application
 
+> **🔄 IMPORTANT UPDATE:** The backend has been upgraded to a full Laravel 10 + FilamentPHP 3.3 implementation with nginx reverse proxy support. See [LARAVEL_SETUP.md](LARAVEL_SETUP.md) for detailed setup instructions and [nginx/README.md](nginx/README.md) for reverse proxy configuration.
+
 A comprehensive 3D dieline folding application with PDF rendering, 2D annotations, automatic line detection, geometry compilation, and 3D visualization with fold animations.
 
 ## Features
@@ -23,11 +25,17 @@ A comprehensive 3D dieline folding application with PDF rendering, 2D annotation
   - GLB/GLTF export functionality
 
 ### Backend (Port 3003)
-- **Laravel API**: RESTful API for project management
-- **FilamentPHP**: Admin panel for resource management (to be configured)
-- **PDF Storage**: Upload and manage PDF files
-- **Project Persistence**: Save and load projects with geometry data
+- **Laravel 10 API**: Full-featured Laravel framework with RESTful API
+- **FilamentPHP 3.3 Admin Panel**: Modern admin interface at `/admin`
+  - User authentication and management
+  - Project CRUD operations
+  - Database resource management
+  - Dashboard widgets and analytics
+- **PDF Storage**: Upload and manage PDF files with Laravel storage
+- **Project Persistence**: Save and load projects with Eloquent ORM
+- **Database**: MySQL 8.0 with migrations and seeders
 - **CORS Enabled**: Full cross-origin support for frontend integration
+- **Nginx Reverse Proxy**: Custom domain support (backend.jfni.artslabcreatives.com)
 
 ## Architecture
 
@@ -84,9 +92,10 @@ A comprehensive 3D dieline folding application with PDF rendering, 2D annotation
 - **MySQL 8**: Database
 
 ### Infrastructure
-- **Docker Compose**: Container orchestration
-- **Nginx**: Web server (optional)
+- **Docker Compose**: Container orchestration with 4 services
+- **Nginx**: Reverse proxy for custom domains and load balancing
 - **CORS**: Enabled for all origins in development
+- **MySQL 8**: Persistent database with volumes
 
 ## Prerequisites
 
@@ -106,12 +115,24 @@ cd jfni_prototype
 2. Start the application:
 ```bash
 docker-compose up --build
+# or
+docker compose up --build
 ```
 
 3. Access the application:
-- Frontend: http://localhost:3002
-- Backend API: http://localhost:3003/api/health
-- Database: localhost:3306
+- **Frontend**: http://localhost (via nginx) or http://localhost:3002 (direct)
+- **Backend API**: http://localhost/api/health or http://localhost:3003/api/health (direct)
+- **Filament Admin**: http://localhost/admin or http://localhost:3003/admin (direct)
+- **Database**: localhost:3306
+
+4. (Optional) Set up custom domains - see [LARAVEL_SETUP.md](LARAVEL_SETUP.md#using-custom-domains-locally)
+   - `frontend.jfni.artslabcreatives.com`
+   - `backend.jfni.artslabcreatives.com`
+
+5. Create admin user for FilamentPHP:
+```bash
+docker-compose exec backend php artisan make:filament-user
+```
 
 ## Local Development Setup
 
@@ -129,10 +150,16 @@ The frontend will be available at http://localhost:3002
 
 ```bash
 cd backend
-php -S localhost:3003 -t public
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate
+php artisan serve --host=0.0.0.0 --port=3003
 ```
 
 The backend API will be available at http://localhost:3003
+
+For FilamentPHP admin panel setup, see [LARAVEL_SETUP.md](LARAVEL_SETUP.md)
 
 ## Usage Guide
 
