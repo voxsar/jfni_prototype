@@ -5,7 +5,7 @@ This implementation fixes the crease line functionality to properly split polygo
 
 ## Problem Statement
 The original issue reported:
-1. Crease lines could not be connected to cut lines (they became "collectables")
+1. Crease lines could not be connected to cut lines (they became "collectibles")
 2. No polygon slicing occurred at crease lines
 3. The polygon plane would not bend at crease lines
 4. No wireframe mode was available for 3D visualization
@@ -150,13 +150,13 @@ The algorithm for splitting a polygon by a crease line:
    - Start at first intersection
    - Walk along polygon boundary to second intersection
    - Add vertices encountered
-   - Close panel by adding crease line (int2 → lineEnd → lineStart → int1)
+   - Close panel by adding crease line (int2 -> lineEnd -> lineStart -> int1)
 
 4. **Create Panel 2:**
    - Start at second intersection
    - Walk along polygon boundary back to first intersection
    - Add vertices encountered
-   - Close panel by adding crease line (int1 → lineStart → lineEnd → int2)
+   - Close panel by adding crease line (int1 -> lineStart -> lineEnd -> int2)
 
 ### Line-Line Intersection Math
 
