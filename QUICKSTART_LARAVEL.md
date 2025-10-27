@@ -10,7 +10,7 @@ This guide will get you up and running with the new Laravel 10 + FilamentPHP set
 ## Step 1: Clone and Verify (30 seconds)
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/voxsar/jfni_prototype.git
 cd jfni_prototype
 ./verify-laravel.sh
 ```

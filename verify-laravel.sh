@@ -8,6 +8,13 @@ echo "Laravel Installation Verification"
 echo "========================================="
 echo ""
 
+# Check if we're in the project root
+if [ ! -f "docker-compose.yml" ]; then
+    echo "❌ ERROR: This script must be run from the project root directory"
+    echo "   Please cd to the jfni_prototype directory and try again"
+    exit 1
+fi
+
 # Change to backend directory
 cd backend
 
@@ -15,6 +22,7 @@ cd backend
 echo "✓ Checking Laravel installation..."
 if [ ! -f "artisan" ]; then
     echo "❌ ERROR: Laravel not found (artisan missing)"
+    echo "   The backend directory may not contain a Laravel installation"
     exit 1
 fi
 echo "  ✓ Laravel artisan found"
@@ -61,10 +69,12 @@ fi
 # Check migrations
 echo ""
 echo "✓ Checking migrations..."
-if ls database/migrations/*create_projects_table.php 1> /dev/null 2>&1; then
+migration_count=$(ls database/migrations/*create_projects_table.php 2>/dev/null | wc -l)
+if [ "$migration_count" -gt 0 ]; then
     echo "  ✓ Projects migration found"
 else
     echo "  ❌ Projects migration not found"
+    echo "   Expected: database/migrations/*create_projects_table.php"
     exit 1
 fi
 

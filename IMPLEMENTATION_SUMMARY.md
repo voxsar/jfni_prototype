@@ -3,7 +3,7 @@
 ## Issue Description
 
 The original issue stated:
-> "Laravel is not implemented properly. It does not seem to be load with the docker and connecting to the front and backend. There needs to be a place for me to add the nginx reverse proxy urls like backend.jfni.artslabcreatives.com and frontend.jfni.artslabcreatives.com"
+> "Laravel is not implemented properly. It does not seem to load with the docker and connecting to the front and backend. There needs to be a place for me to add the nginx reverse proxy urls like backend.jfni.artslabcreatives.com and frontend.jfni.artslabcreatives.com"
 
 ## Problems Identified
 
