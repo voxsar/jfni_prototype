@@ -109,13 +109,17 @@ export class GeometryCompiler {
         // Create a single merged panel from the boundary
         const vertices = this.pointsToVertices(boundary.points);
         const center = this.calculateCenter(boundary.points);
+        const bounds = this.calculateBounds(boundary.points);
 
         return {
             id: 'panel_merged',
             vertices: vertices,
             center: center,
             holes: boundary.holes || [],
-            isMerged: true
+            isMerged: true,
+            bounds: bounds,
+            canvasWidth: width,
+            canvasHeight: height
         };
     }
 
@@ -201,6 +205,21 @@ export class GeometryCompiler {
         }
         
         return [sumX / count, sumY / count];
+    }
+
+    calculateBounds(points) {
+        // Calculate bounding box for points
+        let minX = Infinity, minY = Infinity;
+        let maxX = -Infinity, maxY = -Infinity;
+
+        for (let i = 0; i < points.length; i += 2) {
+            minX = Math.min(minX, points[i]);
+            maxX = Math.max(maxX, points[i]);
+            minY = Math.min(minY, points[i + 1]);
+            maxY = Math.max(maxY, points[i + 1]);
+        }
+
+        return { minX, minY, maxX, maxY };
     }
 
     calculateAxis(points) {

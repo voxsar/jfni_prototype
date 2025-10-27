@@ -334,6 +334,9 @@ export class ThreeScene {
         
         const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
         
+        // Generate proper UV mapping for texture based on panel bounds
+        this.setupPolygonUVMapping(geometry, panel);
+        
         const material = new THREE.MeshStandardMaterial({
             color: 0xcccccc,
             metalness: 0.1,
@@ -345,12 +348,42 @@ export class ThreeScene {
         mesh.position.set(0, 0, 0);
         mesh.userData.panelId = panel.id;
         mesh.userData.isMerged = true;
+        mesh.userData.panelBounds = panel.bounds; // Store bounds for UV mapping
         
         // Scale down to fit in view
         const scale = 0.1;
         mesh.scale.set(scale, scale, scale);
         
         return mesh;
+    }
+
+    setupPolygonUVMapping(geometry, panel) {
+        // Generate UV coordinates based on the panel's position in the original PDF canvas
+        // This ensures the texture maps correctly to the cut line area
+        
+        const positions = geometry.attributes.position;
+        const uvs = [];
+        
+        // Get panel bounds in canvas coordinates
+        const bounds = panel.bounds || { minX: 0, minY: 0, maxX: 800, maxY: 600 };
+        const canvasWidth = panel.canvasWidth || 800;
+        const canvasHeight = panel.canvasHeight || 600;
+        
+        // For each vertex, calculate UV coordinates based on its position
+        for (let i = 0; i < positions.count; i++) {
+            const x = positions.getX(i) + panel.center[0];
+            const y = positions.getY(i) + panel.center[1];
+            
+            // Map position to UV coordinates (0-1 range)
+            // X: map from panel bounds to canvas width
+            // Y: map from panel bounds to canvas height (flip Y for texture)
+            const u = x / canvasWidth;
+            const v = 1.0 - (y / canvasHeight); // Flip Y coordinate for correct texture orientation
+            
+            uvs.push(u, v);
+        }
+        
+        geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     }
 
     setupUVMapping(geometry) {
