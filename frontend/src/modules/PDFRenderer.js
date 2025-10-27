@@ -77,9 +77,11 @@ export class PDFRenderer {
     setupPanHandlers() {
         const container = this.canvas.parentElement;
         
+        // Middle mouse button pan (button 1)
         container.addEventListener('mousedown', (e) => {
-            // Only pan if we're zoomed in
-            if (this.zoomLevel > 1.0) {
+            // Middle click (button 1) or left click when zoomed
+            if (e.button === 1 || (e.button === 0 && this.zoomLevel > 1.0)) {
+                e.preventDefault(); // Prevent default middle-click behavior
                 this.isDragging = true;
                 this.lastMouseX = e.clientX;
                 this.lastMouseY = e.clientY;
@@ -102,12 +104,14 @@ export class PDFRenderer {
             }
         });
 
-        container.addEventListener('mouseup', () => {
-            this.isDragging = false;
-            if (this.zoomLevel > 1.0) {
-                container.style.cursor = 'grab';
-            } else {
-                container.style.cursor = 'default';
+        container.addEventListener('mouseup', (e) => {
+            if (e.button === 1 || e.button === 0) {
+                this.isDragging = false;
+                if (this.zoomLevel > 1.0) {
+                    container.style.cursor = 'grab';
+                } else {
+                    container.style.cursor = 'default';
+                }
             }
         });
 
@@ -117,6 +121,60 @@ export class PDFRenderer {
                 container.style.cursor = 'grab';
             } else {
                 container.style.cursor = 'default';
+            }
+        });
+
+        // Mouse wheel zoom
+        container.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            
+            const zoomDelta = e.deltaY > 0 ? 0.9 : 1.1; // Zoom out or in
+            const oldZoom = this.zoomLevel;
+            this.zoomLevel = Math.max(0.5, Math.min(5.0, this.zoomLevel * zoomDelta));
+            
+            if (oldZoom !== this.zoomLevel) {
+                // Get mouse position relative to container
+                const rect = container.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                
+                // Adjust pan to zoom towards mouse position
+                const zoomRatio = this.zoomLevel / oldZoom;
+                this.panX = mouseX - (mouseX - this.panX) * zoomRatio;
+                this.panY = mouseY - (mouseY - this.panY) * zoomRatio;
+                
+                this.renderPage(this.currentPage).then(() => {
+                    this.updateTransform();
+                    container.style.cursor = this.zoomLevel > 1.0 ? 'grab' : 'default';
+                    
+                    // Dispatch custom event for main app to update annotation layer
+                    const event = new CustomEvent('pdfzoom', {
+                        detail: { 
+                            zoomLevel: this.zoomLevel,
+                            width: this.canvas.width,
+                            height: this.canvas.height
+                        }
+                    });
+                    window.dispatchEvent(event);
+                });
+            }
+        }, { passive: false });
+
+        // Prevent context menu on middle click
+        let middleClickActive = false;
+        container.addEventListener('mousedown', (e) => {
+            if (e.button === 1) {
+                middleClickActive = true;
+            }
+        });
+        container.addEventListener('mouseup', (e) => {
+            if (e.button === 1) {
+                setTimeout(() => { middleClickActive = false; }, 100);
+            }
+        });
+        container.addEventListener('contextmenu', (e) => {
+            if (middleClickActive) {
+                e.preventDefault();
             }
         });
     }
