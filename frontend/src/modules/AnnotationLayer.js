@@ -24,6 +24,12 @@ export class AnnotationLayer {
         this.selectedLine = null;
         this.isDragging = false;
         this.dragStartPos = null;
+        this.polygonPoints = [];  // For polygon drawing mode
+        this.isPolygonMode = false;
+        this.polygonPreviewLine = null;
+        this.units = 'inches';  // Default unit system
+        this.pixelsPerUnit = 96;  // 96 pixels per inch (standard DPI)
+        this.cutoffAreas = [];  // Track cut-off areas
 
         this.setupEventHandlers();
         this.setupContextMenu();
@@ -43,7 +49,24 @@ export class AnnotationLayer {
 
     setTool(tool) {
         this.currentTool = tool;
-        console.log('Annotation tool set to:', tool);
+        // Enable polygon mode for cut lines
+        this.isPolygonMode = (tool === 'cut');
+        this.finishPolygon(); // Finish any existing polygon
+        console.log('Annotation tool set to:', tool, 'Polygon mode:', this.isPolygonMode);
+    }
+
+    setUnits(units) {
+        this.units = units;
+        this.pixelsPerUnit = units === 'inches' ? 96 : 37.8; // 96 DPI for inches, ~37.8 for cm
+        console.log('Units set to:', units);
+    }
+
+    pixelsToUnits(pixels) {
+        return pixels / this.pixelsPerUnit;
+    }
+
+    unitsToPixels(units) {
+        return units * this.pixelsPerUnit;
     }
 
     setupEventHandlers() {
@@ -65,11 +88,33 @@ export class AnnotationLayer {
                 return;
             }
 
-            // If clicking on stage and a tool is selected, start drawing
+            // If clicking on stage and a tool is selected
             if (!this.currentTool || target !== this.stage) return;
 
-            this.isDrawing = true;
             const pos = this.stage.getPointerPosition();
+
+            // Polygon mode (for cut lines)
+            if (this.isPolygonMode) {
+                // Check if clicking near the first point to close polygon
+                if (this.polygonPoints.length >= 6) {
+                    const dist = Math.sqrt(
+                        Math.pow(pos.x - this.polygonPoints[0], 2) + 
+                        Math.pow(pos.y - this.polygonPoints[1], 2)
+                    );
+                    if (dist < 15) {
+                        this.finishPolygon();
+                        return;
+                    }
+                }
+
+                // Add point to polygon
+                this.polygonPoints.push(pos.x, pos.y);
+                this.updatePolygonPreview();
+                return;
+            }
+
+            // Regular drawing mode (for crease, perf, emboss)
+            this.isDrawing = true;
 
             const lineConfig = this.getLineConfig(this.currentTool);
             
@@ -91,6 +136,12 @@ export class AnnotationLayer {
 
         this.stage.on('mousemove touchmove', (e) => {
             const pos = this.stage.getPointerPosition();
+
+            // Handle polygon preview
+            if (this.isPolygonMode && this.polygonPoints.length > 0) {
+                this.updatePolygonPreview(pos);
+                return;
+            }
 
             // Handle dragging existing line
             if (this.isDragging && this.selectedLine) {
@@ -185,6 +236,87 @@ export class AnnotationLayer {
         });
     }
 
+    updatePolygonPreview(currentPos) {
+        // Remove old preview
+        if (this.polygonPreviewLine) {
+            this.polygonPreviewLine.destroy();
+        }
+
+        if (this.polygonPoints.length === 0) {
+            return;
+        }
+
+        const previewPoints = [...this.polygonPoints];
+        if (currentPos) {
+            previewPoints.push(currentPos.x, currentPos.y);
+        }
+
+        const lineConfig = this.getLineConfig(this.currentTool);
+        this.polygonPreviewLine = new Konva.Line({
+            stroke: lineConfig.color,
+            strokeWidth: lineConfig.width,
+            dash: lineConfig.dash,
+            lineCap: 'round',
+            lineJoin: 'round',
+            points: previewPoints,
+            opacity: 0.6,
+            name: 'polygon-preview'
+        });
+
+        this.layer.add(this.polygonPreviewLine);
+        this.layer.batchDraw();
+    }
+
+    finishPolygon() {
+        if (this.polygonPoints.length < 6) {
+            // Need at least 3 points (6 coordinates)
+            this.polygonPoints = [];
+            if (this.polygonPreviewLine) {
+                this.polygonPreviewLine.destroy();
+                this.polygonPreviewLine = null;
+                this.layer.batchDraw();
+            }
+            return;
+        }
+
+        // Close the polygon
+        const closedPoints = [...this.polygonPoints, this.polygonPoints[0], this.polygonPoints[1]];
+
+        const lineConfig = this.getLineConfig(this.currentTool);
+        const line = new Konva.Line({
+            stroke: lineConfig.color,
+            strokeWidth: lineConfig.width,
+            dash: lineConfig.dash,
+            lineCap: 'round',
+            lineJoin: 'round',
+            points: closedPoints,
+            annotationType: this.currentTool,
+            name: 'annotation-line',
+            closed: true,
+            hitStrokeWidth: 15
+        });
+
+        this.addLineInteractivity(line);
+        this.layer.add(line);
+        
+        this.annotations[this.currentTool].push({
+            points: closedPoints,
+            type: this.currentTool,
+            line: line,
+            closed: true
+        });
+
+        // Clear polygon state
+        this.polygonPoints = [];
+        if (this.polygonPreviewLine) {
+            this.polygonPreviewLine.destroy();
+            this.polygonPreviewLine = null;
+        }
+
+        this.layer.batchDraw();
+        console.log(`Finished closed polygon with ${closedPoints.length / 2} points`);
+    }
+
     setupContextMenu() {
         // Create context menu element
         const menu = document.createElement('div');
@@ -218,6 +350,8 @@ export class AnnotationLayer {
             { label: 'Change to Crease', type: 'crease', disabled: currentType === 'crease' },
             { label: 'Change to Perforation', type: 'perf', disabled: currentType === 'perf' },
             { label: 'Change to Emboss', type: 'emboss', disabled: currentType === 'emboss' },
+            { label: '---', type: 'separator' },
+            { label: 'Expand Cutline...', type: 'expand', disabled: currentType !== 'cut' },
             { label: '---', type: 'separator' },
             { label: 'Delete Line', type: 'delete', color: '#ff4444' }
         ];
@@ -265,6 +399,8 @@ export class AnnotationLayer {
 
                 if (action === 'delete') {
                     this.deleteLine(line);
+                } else if (action === 'expand') {
+                    this.expandCutline(line);
                 } else {
                     this.changeLineType(line, action);
                 }
@@ -323,6 +459,143 @@ export class AnnotationLayer {
         this.layer.batchDraw();
         
         console.log(`Deleted ${type} line`);
+    }
+
+    expandCutline(line) {
+        const expandValue = prompt(`Enter expansion value in ${this.units}:`, '0.5');
+        if (!expandValue || isNaN(parseFloat(expandValue))) {
+            return;
+        }
+
+        const expansion = parseFloat(expandValue);
+        const pixels = this.unitsToPixels(expansion);
+
+        // Get the points of the line
+        const points = line.points();
+        const expandedPoints = this.expandPolygon(points, pixels);
+
+        if (expandedPoints) {
+            line.points(expandedPoints);
+            this.updateAnnotationData(line);
+            this.layer.batchDraw();
+            console.log(`Expanded cutline by ${expansion} ${this.units}`);
+        }
+    }
+
+    expandPolygon(points, offset) {
+        // Simple polygon offset algorithm
+        // This is a basic implementation; production code would use a proper library
+        const expandedPoints = [];
+        const numPoints = points.length / 2;
+
+        for (let i = 0; i < numPoints; i++) {
+            const prevIdx = (i - 1 + numPoints) % numPoints;
+            const nextIdx = (i + 1) % numPoints;
+
+            const px = points[prevIdx * 2];
+            const py = points[prevIdx * 2 + 1];
+            const cx = points[i * 2];
+            const cy = points[i * 2 + 1];
+            const nx = points[nextIdx * 2];
+            const ny = points[nextIdx * 2 + 1];
+
+            // Calculate normal vectors for the two edges
+            const dx1 = cx - px;
+            const dy1 = cy - py;
+            const len1 = Math.sqrt(dx1 * dx1 + dy1 * dy1);
+            const nx1 = -dy1 / len1;
+            const ny1 = dx1 / len1;
+
+            const dx2 = nx - cx;
+            const dy2 = ny - cy;
+            const len2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+            const nx2 = -dy2 / len2;
+            const ny2 = dx2 / len2;
+
+            // Average the normals for this vertex
+            const avgNx = (nx1 + nx2) / 2;
+            const avgNy = (ny1 + ny2) / 2;
+            const avgLen = Math.sqrt(avgNx * avgNx + avgNy * avgNy);
+
+            // Offset the point
+            expandedPoints.push(cx + (avgNx / avgLen) * offset);
+            expandedPoints.push(cy + (avgNy / avgLen) * offset);
+        }
+
+        return expandedPoints;
+    }
+
+    toggleCutoffHighlight() {
+        // Toggle highlighting of cut-off areas
+        const cutLines = this.annotations.cut;
+        
+        // Find areas not included in cut lines (areas that will be cut off)
+        // For simplicity, we'll highlight the entire canvas except cut areas
+        if (this.cutoffHighlight) {
+            this.cutoffHighlight.destroy();
+            this.cutoffHighlight = null;
+        } else {
+            // Create a faint red overlay for cut-off areas
+            const rect = new Konva.Rect({
+                x: 0,
+                y: 0,
+                width: this.stage.width(),
+                height: this.stage.height(),
+                fill: 'rgba(255, 0, 0, 0.1)',
+                name: 'cutoff-highlight',
+                listening: false
+            });
+            this.layer.add(rect);
+            rect.moveToBottom();
+            this.cutoffHighlight = rect;
+        }
+        
+        this.layer.batchDraw();
+        return this.cutoffHighlight !== null;
+    }
+
+    validateCreaseLine(creaseLine) {
+        // Crease lines must connect to cut lines at both ends
+        const cutLines = this.annotations.cut;
+        if (cutLines.length === 0) {
+            return { valid: false, message: 'No cut lines to connect to' };
+        }
+
+        const creasePoints = creaseLine.points;
+        const startPoint = { x: creasePoints[0], y: creasePoints[1] };
+        const endPoint = { x: creasePoints[creasePoints.length - 2], y: creasePoints[creasePoints.length - 1] };
+
+        const tolerance = 10; // pixels
+        let startConnected = false;
+        let endConnected = false;
+
+        // Check if both ends connect to a cut line
+        for (const cutLine of cutLines) {
+            const cutPoints = cutLine.points;
+            for (let i = 0; i < cutPoints.length - 1; i += 2) {
+                const cutPoint = { x: cutPoints[i], y: cutPoints[i + 1] };
+                
+                if (!startConnected && this.pointDistance(startPoint, cutPoint) < tolerance) {
+                    startConnected = true;
+                }
+                if (!endConnected && this.pointDistance(endPoint, cutPoint) < tolerance) {
+                    endConnected = true;
+                }
+                
+                if (startConnected && endConnected) {
+                    return { valid: true, message: 'Crease connects to cut lines' };
+                }
+            }
+        }
+
+        return { 
+            valid: false, 
+            message: `Crease must connect to cut lines at both ends (start: ${startConnected}, end: ${endConnected})`
+        };
+    }
+
+    pointDistance(p1, p2) {
+        return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
     }
 
     updateAnnotationData(line) {

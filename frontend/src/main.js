@@ -31,6 +31,18 @@ class DielineApp {
         document.getElementById('zoom-out').addEventListener('click', () => this.zoomOut());
         document.getElementById('zoom-reset').addEventListener('click', () => this.resetZoom());
 
+        // Unit toggle
+        const unitToggle = document.getElementById('unit-toggle');
+        if (unitToggle) {
+            unitToggle.addEventListener('click', () => this.toggleUnits());
+        }
+
+        // Cutoff highlight toggle
+        const cutoffToggle = document.getElementById('cutoff-toggle');
+        if (cutoffToggle) {
+            cutoffToggle.addEventListener('click', () => this.toggleCutoffHighlight());
+        }
+
         // Annotation tools
         document.getElementById('cut-tool').addEventListener('click', () => this.setTool('cut'));
         document.getElementById('crease-tool').addEventListener('click', () => this.setTool('crease'));
@@ -91,7 +103,40 @@ class DielineApp {
             this.annotationLayer.setTool(tool);
         }
         
-        this.updateStatus(`Tool: ${tool}`);
+        const toolName = tool === 'cut' ? 'Cut Line (Polygon Mode)' : 
+                        tool === 'crease' ? 'Crease' :
+                        tool === 'perf' ? 'Perforation' : 'Emboss';
+        this.updateStatus(`Tool: ${toolName}`);
+    }
+
+    toggleUnits() {
+        if (!this.annotationLayer) return;
+        
+        const currentUnits = this.annotationLayer.units;
+        const newUnits = currentUnits === 'inches' ? 'cm' : 'inches';
+        this.annotationLayer.setUnits(newUnits);
+        
+        const unitToggle = document.getElementById('unit-toggle');
+        if (unitToggle) {
+            unitToggle.textContent = newUnits === 'inches' ? '📏 Inches' : '📏 CM';
+        }
+        
+        this.updateStatus(`Units: ${newUnits}`);
+    }
+
+    toggleCutoffHighlight() {
+        if (!this.annotationLayer) {
+            this.updateStatus('Error: Load a PDF first');
+            return;
+        }
+        
+        const isActive = this.annotationLayer.toggleCutoffHighlight();
+        const cutoffToggle = document.getElementById('cutoff-toggle');
+        if (cutoffToggle) {
+            cutoffToggle.classList.toggle('active', isActive);
+        }
+        
+        this.updateStatus(isActive ? 'Cutoff areas highlighted' : 'Cutoff highlight disabled');
     }
 
     async detectLines() {
