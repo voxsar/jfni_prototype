@@ -112,13 +112,18 @@ class DielineApp {
     compileGeometry() {
         if (!this.annotationLayer) {
             this.updateStatus('Error: No annotations to compile');
+            console.error('Cannot compile geometry: No annotation layer');
             return;
         }
 
         this.updateStatus('Compiling geometry...');
+        console.log('Starting geometry compilation...');
 
         const annotations = this.annotationLayer.getAllAnnotations();
+        console.log('Annotations retrieved:', annotations);
+        
         const dims = this.pdfRenderer.getCanvasDimensions();
+        console.log('Canvas dimensions:', dims);
         
         this.geometryData = this.geometryCompiler.compile(
             annotations,
@@ -126,6 +131,8 @@ class DielineApp {
             dims.height
         );
 
+        console.log('Geometry data compiled:', this.geometryData);
+        
         this.updateStatus(
             `Compiled: ${this.geometryData.panels.length} panels, ` +
             `${this.geometryData.hinges.length} hinges`
@@ -135,27 +142,35 @@ class DielineApp {
     build3D() {
         if (!this.geometryData) {
             this.updateStatus('Error: Compile geometry first');
+            console.error('Cannot build 3D: No geometry data available');
             return;
         }
 
         this.updateStatus('Building 3D scene...');
+        console.log('Starting 3D scene build with geometry data:', this.geometryData);
+        
         this.threeScene.build3DFromGeometry(this.geometryData);
         this.updateStatus('3D scene ready');
+        console.log('3D scene build complete');
     }
 
     animateFold() {
+        console.log('User requested fold animation');
         this.updateStatus('Animating fold sequence...');
         this.threeScene.animateFold();
         this.updateStatus('Animation playing');
     }
 
     async exportGLB() {
+        console.log('User requested GLB export');
         this.updateStatus('Exporting GLB...');
         
         try {
             await this.threeScene.exportGLB();
             this.updateStatus('GLB exported successfully');
+            console.log('GLB export completed successfully');
         } catch (error) {
+            console.error('GLB export failed:', error);
             this.updateStatus(`Export error: ${error.message}`);
         }
     }

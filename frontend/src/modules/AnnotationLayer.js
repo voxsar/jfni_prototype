@@ -32,7 +32,7 @@ export class AnnotationLayer {
 
     setTool(tool) {
         this.currentTool = tool;
-        console.log('Tool set to:', tool);
+        console.log('Annotation tool set to:', tool);
     }
 
     setupEventHandlers() {
@@ -76,6 +76,7 @@ export class AnnotationLayer {
                     points: this.currentLine.points(),
                     type: this.currentTool
                 });
+                console.log(`Added ${this.currentTool} annotation with ${this.currentLine.points().length / 2} points`);
             }
 
             this.isDrawing = false;
@@ -122,6 +123,7 @@ export class AnnotationLayer {
     }
 
     getAllAnnotations() {
+        console.log('Getting all annotations:', this.annotations);
         return this.annotations;
     }
 

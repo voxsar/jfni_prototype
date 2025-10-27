@@ -56,17 +56,21 @@ export class ThreeScene {
 
     build3DFromGeometry(geometryData) {
         console.log('Building 3D scene from geometry data...');
+        console.log('Geometry data:', geometryData);
         
         // Clear existing meshes
         this.clearScene();
         
         const { panels, hinges, embossMaps } = geometryData;
         
+        console.log(`Creating ${panels.length} panels...`);
+        
         // Create 3D panels
         panels.forEach((panel, index) => {
-            const mesh = this.createPanelMesh(panel, index);
+            const mesh = this.createPanelMesh(panel, index, panels.length);
             this.scene.add(mesh);
             this.meshes.push({ mesh, panel, hinges: [] });
+            console.log(`Panel ${index} created:`, panel.id);
         });
         
         // Store hinge data for animations
@@ -76,8 +80,10 @@ export class ThreeScene {
         console.log('3D scene built with', this.meshes.length, 'panels');
     }
 
-    createPanelMesh(panel, index) {
+    createPanelMesh(panel, index, totalPanels) {
         const vertices = panel.vertices;
+        
+        console.log(`Creating mesh for panel ${index} with ${vertices.length} vertices`);
         
         // Create simple rectangular geometry for now
         // In production, would create proper polygon geometry
@@ -93,7 +99,7 @@ export class ThreeScene {
         });
         
         const mesh = new THREE.Mesh(geometry, material);
-        mesh.position.x = (index - panels.length / 2) * 25;
+        mesh.position.x = (index - totalPanels / 2) * 25;
         mesh.userData.panelId = panel.id;
         
         // Add UV mapping

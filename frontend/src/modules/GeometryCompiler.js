@@ -8,6 +8,8 @@ export class GeometryCompiler {
 
     compile(annotations, canvasWidth, canvasHeight) {
         console.log('Compiling geometry from annotations...');
+        console.log('Input annotations:', annotations);
+        console.log('Canvas dimensions:', canvasWidth, 'x', canvasHeight);
         
         this.panels = [];
         this.hinges = [];
@@ -15,14 +17,17 @@ export class GeometryCompiler {
 
         // Extract cut lines to define panels
         const cutLines = annotations.cut || [];
+        console.log('Cut lines:', cutLines.length);
         this.panels = this.extractPanels(cutLines, canvasWidth, canvasHeight);
 
         // Extract crease lines to define hinges
         const creaseLines = annotations.crease || [];
+        console.log('Crease lines:', creaseLines.length);
         this.hinges = this.extractHinges(creaseLines, this.panels);
 
         // Extract emboss regions
         const embossLines = annotations.emboss || [];
+        console.log('Emboss lines:', embossLines.length);
         this.embossMaps = this.extractEmbossMaps(embossLines);
 
         console.log('Compiled:', this.panels.length, 'panels,', this.hinges.length, 'hinges');
@@ -37,8 +42,11 @@ export class GeometryCompiler {
     extractPanels(cutLines, width, height) {
         const panels = [];
         
+        console.log('Extracting panels from', cutLines.length, 'cut lines');
+        
         // Simple approach: if no cut lines, create one main panel
         if (cutLines.length === 0) {
+            console.log('No cut lines found, creating default panel');
             panels.push({
                 id: 'panel_0',
                 vertices: [
@@ -65,6 +73,7 @@ export class GeometryCompiler {
             }
         });
 
+        console.log('Extracted', panels.length, 'panels');
         return panels;
     }
 
