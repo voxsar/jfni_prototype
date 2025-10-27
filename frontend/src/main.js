@@ -49,6 +49,12 @@ class DielineApp {
             validateCreases.addEventListener('click', () => this.validateCreases());
         }
 
+        // Swap lines button
+        const swapLines = document.getElementById('swap-lines');
+        if (swapLines) {
+            swapLines.addEventListener('click', () => this.swapLineTypes());
+        }
+
         // Annotation tools
         document.getElementById('cut-tool').addEventListener('click', () => this.setTool('cut'));
         document.getElementById('crease-tool').addEventListener('click', () => this.setTool('crease'));
@@ -169,6 +175,32 @@ class DielineApp {
         }
     }
 
+    swapLineTypes() {
+        if (!this.annotationLayer) {
+            this.updateStatus('Error: Load a PDF first');
+            return;
+        }
+
+        const fromType = prompt('Swap FROM which type?\nOptions: cut, crease, perf, emboss', 'cut');
+        if (!fromType || !['cut', 'crease', 'perf', 'emboss'].includes(fromType)) {
+            return;
+        }
+
+        const toType = prompt('Swap TO which type?\nOptions: cut, crease, perf, emboss', 'crease');
+        if (!toType || !['cut', 'crease', 'perf', 'emboss'].includes(toType)) {
+            return;
+        }
+
+        if (fromType === toType) {
+            alert('Cannot swap to the same type!');
+            return;
+        }
+
+        const count = this.annotationLayer.swapAllLineTypes(fromType, toType);
+        this.updateStatus(`Swapped ${count} lines from ${fromType} to ${toType}`);
+        alert(`Successfully swapped ${count} lines from ${fromType} to ${toType}`);
+    }
+
     async detectLines() {
         if (!this.pdfRenderer.canvas) {
             this.updateStatus('Error: Load a PDF first');
@@ -181,7 +213,7 @@ class DielineApp {
         const lines = await this.lineDetector.detectLines(canvas);
         
         if (lines.length > 0) {
-            const classified = this.lineDetector.classifyLines(lines);
+            const classified = this.lineDetector.classifyLines(lines, canvas);
             
             // Add detected lines to annotation layer
             Object.keys(classified).forEach(type => {
@@ -192,7 +224,7 @@ class DielineApp {
                 });
             });
             
-            this.updateStatus(`Detected ${lines.length} lines`);
+            this.updateStatus(`Detected ${lines.length} lines (color-based classification)`);
         } else {
             this.updateStatus('No lines detected');
         }
