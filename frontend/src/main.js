@@ -43,6 +43,12 @@ class DielineApp {
             cutoffToggle.addEventListener('click', () => this.toggleCutoffHighlight());
         }
 
+        // Validate creases button
+        const validateCreases = document.getElementById('validate-creases');
+        if (validateCreases) {
+            validateCreases.addEventListener('click', () => this.validateCreases());
+        }
+
         // Annotation tools
         document.getElementById('cut-tool').addEventListener('click', () => this.setTool('cut'));
         document.getElementById('crease-tool').addEventListener('click', () => this.setTool('crease'));
@@ -137,6 +143,30 @@ class DielineApp {
         }
         
         this.updateStatus(isActive ? 'Cutoff areas highlighted' : 'Cutoff highlight disabled');
+    }
+
+    validateCreases() {
+        if (!this.annotationLayer) {
+            this.updateStatus('Error: Load a PDF first');
+            return;
+        }
+
+        const results = this.annotationLayer.validateAllCreases();
+        
+        if (results.total === 0) {
+            this.updateStatus('No crease lines to validate');
+            return;
+        }
+
+        const message = `Validated ${results.total} creases: ${results.valid} valid, ${results.invalid} invalid`;
+        this.updateStatus(message);
+        
+        if (results.invalid > 0) {
+            console.warn('Crease validation warnings:', results.warnings);
+            alert(`Found ${results.invalid} invalid crease line(s):\n\n${results.warnings.join('\n')}`);
+        } else {
+            alert('All crease lines are valid!');
+        }
     }
 
     async detectLines() {

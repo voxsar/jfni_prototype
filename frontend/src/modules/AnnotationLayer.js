@@ -212,6 +212,27 @@ export class AnnotationLayer {
                 this.hideContextMenu();
             }
         });
+
+        // Keyboard shortcuts for polygon mode
+        document.addEventListener('keydown', (e) => {
+            if (this.isPolygonMode) {
+                if (e.key === 'Escape') {
+                    // Cancel polygon
+                    this.polygonPoints = [];
+                    if (this.polygonPreviewLine) {
+                        this.polygonPreviewLine.destroy();
+                        this.polygonPreviewLine = null;
+                    }
+                    const markers = this.layer.find('.polygon-marker');
+                    markers.forEach(marker => marker.destroy());
+                    this.layer.batchDraw();
+                    console.log('Polygon cancelled');
+                } else if (e.key === 'Enter') {
+                    // Complete polygon
+                    this.finishPolygon();
+                }
+            }
+        });
     }
 
     addLineInteractivity(line) {
@@ -242,8 +263,33 @@ export class AnnotationLayer {
             this.polygonPreviewLine.destroy();
         }
 
+        // Remove old polygon markers
+        const oldMarkers = this.layer.find('.polygon-marker');
+        oldMarkers.forEach(marker => marker.destroy());
+
         if (this.polygonPoints.length === 0) {
             return;
+        }
+
+        // Add visual markers for each polygon point
+        for (let i = 0; i < this.polygonPoints.length; i += 2) {
+            const circle = new Konva.Circle({
+                x: this.polygonPoints[i],
+                y: this.polygonPoints[i + 1],
+                radius: 5,
+                fill: '#00ff00',
+                stroke: '#ffffff',
+                strokeWidth: 2,
+                name: 'polygon-marker'
+            });
+            
+            // Make the first point larger to indicate where to close
+            if (i === 0) {
+                circle.radius(8);
+                circle.fill('#ffff00');
+            }
+            
+            this.layer.add(circle);
         }
 
         const previewPoints = [...this.polygonPoints];
@@ -274,8 +320,11 @@ export class AnnotationLayer {
             if (this.polygonPreviewLine) {
                 this.polygonPreviewLine.destroy();
                 this.polygonPreviewLine = null;
-                this.layer.batchDraw();
             }
+            // Remove polygon markers
+            const markers = this.layer.find('.polygon-marker');
+            markers.forEach(marker => marker.destroy());
+            this.layer.batchDraw();
             return;
         }
 
@@ -312,6 +361,10 @@ export class AnnotationLayer {
             this.polygonPreviewLine.destroy();
             this.polygonPreviewLine = null;
         }
+        
+        // Remove polygon markers
+        const markers = this.layer.find('.polygon-marker');
+        markers.forEach(marker => marker.destroy());
 
         this.layer.batchDraw();
         console.log(`Finished closed polygon with ${closedPoints.length / 2} points`);
@@ -636,6 +689,73 @@ export class AnnotationLayer {
         this.layer.add(line);
         this.annotations[type].push({ points, type, line });
         this.layer.batchDraw();
+        
+        // Validate crease lines
+        if (type === 'crease') {
+            const validation = this.validateCreaseLine(line);
+            if (!validation.valid) {
+                console.warn('Crease validation:', validation.message);
+                // Add visual warning indicator
+                this.addValidationWarning(line, validation.message);
+            }
+        }
+    }
+
+    addValidationWarning(line, message) {
+        // Add a warning icon or color change to indicate invalid crease
+        const points = line.points();
+        const midX = (points[0] + points[points.length - 2]) / 2;
+        const midY = (points[1] + points[points.length - 1]) / 2;
+        
+        const warningIcon = new Konva.Text({
+            x: midX - 10,
+            y: midY - 10,
+            text: '⚠️',
+            fontSize: 20,
+            fill: '#ffaa00',
+            name: 'validation-warning',
+            listening: false
+        });
+        
+        warningIcon.on('mouseenter', () => {
+            // Show tooltip with warning message
+            console.log('Validation warning:', message);
+        });
+        
+        this.layer.add(warningIcon);
+        
+        // Store reference to remove later
+        line.setAttr('validationWarning', warningIcon);
+    }
+
+    validateAllCreases() {
+        const creaseLines = this.annotations.crease;
+        const results = {
+            total: creaseLines.length,
+            valid: 0,
+            invalid: 0,
+            warnings: []
+        };
+        
+        creaseLines.forEach((annotation, index) => {
+            const validation = this.validateCreaseLine(annotation.line);
+            if (validation.valid) {
+                results.valid++;
+                // Remove any existing warning
+                const warning = annotation.line.attrs.validationWarning;
+                if (warning) {
+                    warning.destroy();
+                    annotation.line.setAttr('validationWarning', null);
+                }
+            } else {
+                results.invalid++;
+                results.warnings.push(`Crease ${index + 1}: ${validation.message}`);
+                this.addValidationWarning(annotation.line, validation.message);
+            }
+        });
+        
+        this.layer.batchDraw();
+        return results;
     }
 
     clear() {
