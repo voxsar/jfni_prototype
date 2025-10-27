@@ -44,6 +44,14 @@ class DielineApp {
         document.getElementById('animate-fold').addEventListener('click', () => this.animateFold());
         document.getElementById('export-glb').addEventListener('click', () => this.exportGLB());
 
+        // Listen for PDF zoom events from mouse wheel
+        window.addEventListener('pdfzoom', (e) => {
+            if (this.annotationLayer) {
+                this.annotationLayer.setZoom(e.detail.zoomLevel, e.detail.width, e.detail.height);
+            }
+            this.updateStatus(`Zoom: ${Math.round(e.detail.zoomLevel * 100)}%`);
+        });
+
         this.updateStatus('Ready - Load a PDF to begin');
     }
 
