@@ -175,17 +175,23 @@ class DielineApp {
             return;
         }
 
+        if (!this.geometryData || this.meshes === 0) {
+            this.updateStatus('Error: Build 3D model first');
+            console.error('Cannot load texture: No 3D model built');
+            return;
+        }
+
         this.updateStatus('Loading PDF as texture...');
         console.log('Loading PDF canvas as texture for 3D model');
         
         const result = this.threeScene.loadPDFAsTexture(this.pdfRenderer.canvas);
         
         if (result.success) {
-            this.updateStatus('PDF texture loaded successfully');
-            console.log('PDF texture applied to 3D model');
+            this.updateStatus(`PDF texture loaded on ${result.count} panel(s)`);
+            console.log(`PDF texture applied to ${result.count} panels in 3D model`);
         } else {
-            this.updateStatus('Error loading PDF texture');
-            console.error('Failed to load PDF texture');
+            this.updateStatus(`Error: ${result.error}`);
+            console.error('Failed to load PDF texture:', result.error);
         }
     }
 
