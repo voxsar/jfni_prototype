@@ -584,6 +584,9 @@ export class AnnotationLayer {
 
     convertToCurve(line) {
         // Convert a straight line to a smooth curve
+        const POINTS_PER_SEGMENT = 10;
+        const CURVE_TENSION = 0.5;
+        
         const points = line.points();
         
         if (points.length < 4) {
@@ -592,11 +595,11 @@ export class AnnotationLayer {
         }
 
         // Create a smooth curve through the points using Catmull-Rom interpolation
-        const curvedPoints = this.createSmoothCurve(points, 10); // 10 points per segment
+        const curvedPoints = this.createSmoothCurve(points, POINTS_PER_SEGMENT);
         
         // Update the line with curved points
         line.points(curvedPoints);
-        line.tension(0.5); // Add Konva tension for smoother rendering
+        line.tension(CURVE_TENSION); // Add Konva tension for smoother rendering
         this.updateAnnotationData(line);
         this.layer.batchDraw();
         

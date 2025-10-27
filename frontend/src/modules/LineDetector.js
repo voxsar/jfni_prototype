@@ -43,7 +43,6 @@ export class LineDetector {
         try {
             // Convert canvas to OpenCV Mat
             const src = cv.imread(canvas);
-            const dst = new cv.Mat();
             const gray = new cv.Mat();
             const edges = new cv.Mat();
             const lines = new cv.Mat();
@@ -120,7 +119,6 @@ export class LineDetector {
 
             // Cleanup
             src.delete();
-            dst.delete();
             gray.delete();
             edges.delete();
             lines.delete();
