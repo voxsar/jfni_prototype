@@ -25,6 +25,9 @@ WORKDIR /var/www/html
 # Copy application files
 COPY . .
 
+# Create required Laravel storage directories
+RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views
+
 # Install dependencies if composer.lock exists
 RUN if [ -f composer.lock ]; then \
         composer install --no-dev --optimize-autoloader --no-interaction; \
