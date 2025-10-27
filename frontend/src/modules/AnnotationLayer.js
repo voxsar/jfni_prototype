@@ -91,17 +91,30 @@ export class AnnotationLayer {
 
             const target = e.target;
             
-            // If clicking on a line, select it for dragging
-            if (target instanceof Konva.Line && target.hasName('annotation-line')) {
-                this.selectedLine = target;
-                this.isDragging = true;
-                this.dragStartPos = this.stage.getPointerPosition();
-                this.stage.container().style.cursor = 'move';
-                return;
-            }
+            // In polygon mode, allow clicking through lines and markers
+            if (this.isPolygonMode && this.currentTool) {
+                // Allow clicking on polygon markers and preview lines
+                if (target.hasName('polygon-marker') || target.hasName('polygon-preview')) {
+                    // Continue to polygon logic below
+                } else if (target instanceof Konva.Line && target.hasName('annotation-line')) {
+                    // Don't start dragging in polygon mode, treat as stage click
+                } else if (target !== this.stage) {
+                    // Clicking on other elements - ignore
+                    return;
+                }
+            } else {
+                // Normal mode: If clicking on a line, select it for dragging
+                if (target instanceof Konva.Line && target.hasName('annotation-line')) {
+                    this.selectedLine = target;
+                    this.isDragging = true;
+                    this.dragStartPos = this.stage.getPointerPosition();
+                    this.stage.container().style.cursor = 'move';
+                    return;
+                }
 
-            // If clicking on stage and a tool is selected
-            if (!this.currentTool || target !== this.stage) return;
+                // If clicking on stage and a tool is selected
+                if (!this.currentTool || target !== this.stage) return;
+            }
 
             const pos = this.stage.getPointerPosition();
 
@@ -128,6 +141,12 @@ export class AnnotationLayer {
             // Regular drawing mode (for crease, perf, emboss)
             this.isDrawing = true;
 
+            // For crease lines, snap to nearest cut line point
+            let snapPos = pos;
+            if (this.currentTool === 'crease') {
+                snapPos = this.snapToNearestCutLine(pos, 10);
+            }
+
             const lineConfig = this.getLineConfig(this.currentTool);
             
             this.currentLine = new Konva.Line({
@@ -136,7 +155,7 @@ export class AnnotationLayer {
                 dash: lineConfig.dash,
                 lineCap: 'round',
                 lineJoin: 'round',
-                points: [pos.x, pos.y, pos.x, pos.y],
+                points: [snapPos.x, snapPos.y, snapPos.x, snapPos.y],
                 annotationType: this.currentTool,
                 name: 'annotation-line',
                 hitStrokeWidth: 15 // Make it easier to click
@@ -201,6 +220,16 @@ export class AnnotationLayer {
             if (!this.isDrawing) return;
 
             if (this.currentLine && this.currentTool) {
+                // For crease lines, snap the end point to nearest cut line
+                if (this.currentTool === 'crease') {
+                    const points = this.currentLine.points();
+                    const endPos = { x: points[points.length - 2], y: points[points.length - 1] };
+                    const snapPos = this.snapToNearestCutLine(endPos, 10);
+                    points[points.length - 2] = snapPos.x;
+                    points[points.length - 1] = snapPos.y;
+                    this.currentLine.points(points);
+                }
+
                 this.annotations[this.currentTool].push({
                     points: this.currentLine.points(),
                     type: this.currentTool,
@@ -417,6 +446,7 @@ export class AnnotationLayer {
             { label: 'Change to Perforation', type: 'perf', disabled: currentType === 'perf' },
             { label: 'Change to Emboss', type: 'emboss', disabled: currentType === 'emboss' },
             { label: '---', type: 'separator' },
+            { label: 'Convert to Curve', type: 'curve', disabled: false },
             { label: 'Expand Cutline...', type: 'expand', disabled: currentType !== 'cut' },
             { label: '---', type: 'separator' },
             { label: 'Delete Line', type: 'delete', color: '#ff4444' }
@@ -438,10 +468,33 @@ export class AnnotationLayer {
             return `<div class="menu-item" data-action="${item.type}" data-disabled="${item.disabled || false}" style="${style}">${item.label}</div>`;
         }).join('');
 
-        // Position menu
-        menu.style.left = x + 'px';
-        menu.style.top = y + 'px';
-        menu.style.display = 'block';
+        // Position menu, ensuring it stays within viewport
+        menu.style.display = 'block'; // Show first to get dimensions
+        
+        const menuRect = menu.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
+        // Calculate position, adjusting if it would go off-screen
+        let menuX = x;
+        let menuY = y;
+        
+        // Adjust horizontal position if menu would overflow right edge
+        if (menuX + menuRect.width > viewportWidth) {
+            menuX = viewportWidth - menuRect.width - 10;
+        }
+        
+        // Adjust vertical position if menu would overflow bottom edge
+        if (menuY + menuRect.height > viewportHeight) {
+            menuY = viewportHeight - menuRect.height - 10;
+        }
+        
+        // Ensure menu doesn't go off-screen to the left or top
+        menuX = Math.max(10, menuX);
+        menuY = Math.max(10, menuY);
+        
+        menu.style.left = menuX + 'px';
+        menu.style.top = menuY + 'px';
 
         // Add event listeners to menu items
         menu.querySelectorAll('.menu-item').forEach(item => {
@@ -467,6 +520,8 @@ export class AnnotationLayer {
                     this.deleteLine(line);
                 } else if (action === 'expand') {
                     this.expandCutline(line);
+                } else if (action === 'curve') {
+                    this.convertToCurve(line);
                 } else {
                     this.changeLineType(line, action);
                 }
@@ -525,6 +580,74 @@ export class AnnotationLayer {
         this.layer.batchDraw();
         
         console.log(`Deleted ${type} line`);
+    }
+
+    convertToCurve(line) {
+        // Convert a straight line to a smooth curve
+        const points = line.points();
+        
+        if (points.length < 4) {
+            alert('Line must have at least 2 points to convert to curve');
+            return;
+        }
+
+        // Create a smooth curve through the points using Catmull-Rom interpolation
+        const curvedPoints = this.createSmoothCurve(points, 10); // 10 points per segment
+        
+        // Update the line with curved points
+        line.points(curvedPoints);
+        line.tension(0.5); // Add Konva tension for smoother rendering
+        this.updateAnnotationData(line);
+        this.layer.batchDraw();
+        
+        console.log(`Converted line to curve with ${curvedPoints.length / 2} points`);
+    }
+
+    createSmoothCurve(points, pointsPerSegment = 10) {
+        // Use Catmull-Rom spline interpolation for smooth curves
+        if (points.length < 4) return points;
+        
+        const curvedPoints = [];
+        const numPoints = points.length / 2;
+        
+        for (let i = 0; i < numPoints - 1; i++) {
+            const p0 = i > 0 ? { x: points[(i - 1) * 2], y: points[(i - 1) * 2 + 1] } : { x: points[0], y: points[1] };
+            const p1 = { x: points[i * 2], y: points[i * 2 + 1] };
+            const p2 = { x: points[(i + 1) * 2], y: points[(i + 1) * 2 + 1] };
+            const p3 = i < numPoints - 2 ? { x: points[(i + 2) * 2], y: points[(i + 2) * 2 + 1] } : p2;
+            
+            for (let t = 0; t < 1; t += 1 / pointsPerSegment) {
+                const point = this.catmullRomPoint(p0, p1, p2, p3, t);
+                curvedPoints.push(point.x, point.y);
+            }
+        }
+        
+        // Add the last point
+        curvedPoints.push(points[points.length - 2], points[points.length - 1]);
+        
+        return curvedPoints;
+    }
+
+    catmullRomPoint(p0, p1, p2, p3, t) {
+        // Catmull-Rom spline calculation
+        const t2 = t * t;
+        const t3 = t2 * t;
+        
+        const x = 0.5 * (
+            (2 * p1.x) +
+            (-p0.x + p2.x) * t +
+            (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 +
+            (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3
+        );
+        
+        const y = 0.5 * (
+            (2 * p1.y) +
+            (-p0.y + p2.y) * t +
+            (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 +
+            (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3
+        );
+        
+        return { x, y };
     }
 
     expandCutline(line) {
@@ -668,6 +791,64 @@ export class AnnotationLayer {
         return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
     }
 
+    snapToNearestCutLine(pos, radius) {
+        // Find the nearest point on any cut line within the given radius
+        const cutLines = this.annotations.cut;
+        let nearestPoint = pos;
+        let minDistance = radius;
+
+        for (const cutLine of cutLines) {
+            const cutPoints = cutLine.points;
+            for (let i = 0; i < cutPoints.length; i += 2) {
+                if (i + 1 >= cutPoints.length) break;
+                
+                const cutPoint = { x: cutPoints[i], y: cutPoints[i + 1] };
+                const distance = this.pointDistance(pos, cutPoint);
+                
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestPoint = cutPoint;
+                }
+            }
+
+            // Also check for nearest point on line segments, not just vertices
+            for (let i = 0; i < cutPoints.length - 2; i += 2) {
+                if (i + 3 >= cutPoints.length) break;
+                
+                const p1 = { x: cutPoints[i], y: cutPoints[i + 1] };
+                const p2 = { x: cutPoints[i + 2], y: cutPoints[i + 3] };
+                const nearestOnSegment = this.nearestPointOnLineSegment(pos, p1, p2);
+                const distance = this.pointDistance(pos, nearestOnSegment);
+                
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestPoint = nearestOnSegment;
+                }
+            }
+        }
+
+        return nearestPoint;
+    }
+
+    nearestPointOnLineSegment(point, lineStart, lineEnd) {
+        // Calculate the nearest point on a line segment to the given point
+        const dx = lineEnd.x - lineStart.x;
+        const dy = lineEnd.y - lineStart.y;
+        const lengthSquared = dx * dx + dy * dy;
+        
+        if (lengthSquared === 0) {
+            return lineStart;
+        }
+        
+        let t = ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) / lengthSquared;
+        t = Math.max(0, Math.min(1, t));
+        
+        return {
+            x: lineStart.x + t * dx,
+            y: lineStart.y + t * dy
+        };
+    }
+
     updateAnnotationData(line) {
         const type = line.attrs.annotationType;
         const annotations = this.annotations[type];
@@ -676,6 +857,22 @@ export class AnnotationLayer {
         if (annotation) {
             annotation.points = line.points();
         }
+    }
+
+    swapAllLineTypes(fromType, toType) {
+        // Swap all lines of fromType to toType
+        const fromAnnotations = [...this.annotations[fromType]];
+        let count = 0;
+
+        fromAnnotations.forEach(annotation => {
+            if (annotation.line) {
+                this.changeLineType(annotation.line, toType);
+                count++;
+            }
+        });
+
+        console.log(`Swapped ${count} lines from ${fromType} to ${toType}`);
+        return count;
     }
 
     getLineConfig(tool) {
