@@ -175,7 +175,7 @@ class DielineApp {
             return;
         }
 
-        if (!this.geometryData || this.meshes === 0) {
+        if (!this.geometryData || this.threeScene.meshes.length === 0) {
             this.updateStatus('Error: Build 3D model first');
             console.error('Cannot load texture: No 3D model built');
             return;
