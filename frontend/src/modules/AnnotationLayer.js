@@ -30,6 +30,13 @@ export class AnnotationLayer {
         this.stage.height(height);
     }
 
+    setZoom(zoomLevel, width, height) {
+        // Update stage dimensions to match the new PDF canvas size
+        this.stage.width(width);
+        this.stage.height(height);
+        this.layer.batchDraw();
+    }
+
     setTool(tool) {
         this.currentTool = tool;
         console.log('Tool set to:', tool);

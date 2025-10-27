@@ -26,6 +26,11 @@ class DielineApp {
         const pdfUpload = document.getElementById('pdf-upload');
         pdfUpload.addEventListener('change', (e) => this.handlePDFUpload(e));
 
+        // Zoom controls
+        document.getElementById('zoom-in').addEventListener('click', () => this.zoomIn());
+        document.getElementById('zoom-out').addEventListener('click', () => this.zoomOut());
+        document.getElementById('zoom-reset').addEventListener('click', () => this.resetZoom());
+
         // Annotation tools
         document.getElementById('cut-tool').addEventListener('click', () => this.setTool('cut'));
         document.getElementById('crease-tool').addEventListener('click', () => this.setTool('crease'));
@@ -158,6 +163,48 @@ class DielineApp {
         } catch (error) {
             this.updateStatus(`Export error: ${error.message}`);
         }
+    }
+
+    zoomIn() {
+        if (!this.pdfRenderer.canvas) {
+            this.updateStatus('Error: Load a PDF first');
+            return;
+        }
+
+        const zoomLevel = this.pdfRenderer.zoomIn();
+        if (this.annotationLayer) {
+            const dims = this.pdfRenderer.getCanvasDimensions();
+            this.annotationLayer.setZoom(zoomLevel, dims.width, dims.height);
+        }
+        this.updateStatus(`Zoom: ${Math.round(zoomLevel * 100)}%`);
+    }
+
+    zoomOut() {
+        if (!this.pdfRenderer.canvas) {
+            this.updateStatus('Error: Load a PDF first');
+            return;
+        }
+
+        const zoomLevel = this.pdfRenderer.zoomOut();
+        if (this.annotationLayer) {
+            const dims = this.pdfRenderer.getCanvasDimensions();
+            this.annotationLayer.setZoom(zoomLevel, dims.width, dims.height);
+        }
+        this.updateStatus(`Zoom: ${Math.round(zoomLevel * 100)}%`);
+    }
+
+    resetZoom() {
+        if (!this.pdfRenderer.canvas) {
+            this.updateStatus('Error: Load a PDF first');
+            return;
+        }
+
+        const zoomLevel = this.pdfRenderer.resetZoom();
+        if (this.annotationLayer) {
+            const dims = this.pdfRenderer.getCanvasDimensions();
+            this.annotationLayer.setZoom(zoomLevel, dims.width, dims.height);
+        }
+        this.updateStatus(`Zoom reset to 100%`);
     }
 
     async checkBackendConnection() {

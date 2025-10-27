@@ -100,6 +100,7 @@
             width: 100%;
             height: calc(100% - 40px);
             background: #1a1a1a;
+            overflow: auto;
         }
         
         canvas {
@@ -135,6 +136,11 @@
         .annotation-tools button {
             padding: 8px 15px;
         }
+
+        .zoom-controls button {
+            padding: 8px 12px;
+            font-size: 16px;
+        }
     </style>
 </head>
 <body>
@@ -150,6 +156,12 @@
                 <button id="crease-tool" data-tool="crease">Crease</button>
                 <button id="perf-tool" data-tool="perf">Perforation</button>
                 <button id="emboss-tool" data-tool="emboss">Emboss</button>
+            </div>
+
+            <div class="zoom-controls" style="display: flex; gap: 5px; margin-left: 10px;">
+                <button id="zoom-in" title="Zoom In">🔍+</button>
+                <button id="zoom-out" title="Zoom Out">🔍-</button>
+                <button id="zoom-reset" title="Reset Zoom">⟲</button>
             </div>
             
             <button id="compile-geometry">Compile Geometry</button>

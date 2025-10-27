@@ -10,6 +10,15 @@ export class PDFRenderer {
         this.pdfDoc = null;
         this.currentPage = 1;
         this.scale = 1.5;
+        this.baseScale = 1.5; // Store the initial scale
+        this.zoomLevel = 1.0; // Current zoom multiplier
+        this.panX = 0;
+        this.panY = 0;
+        this.isDragging = false;
+        this.lastMouseX = 0;
+        this.lastMouseY = 0;
+        
+        this.setupPanHandlers();
     }
 
     async loadPDF(file) {
@@ -29,7 +38,8 @@ export class PDFRenderer {
         if (!this.pdfDoc) return;
 
         const page = await this.pdfDoc.getPage(pageNum);
-        const viewport = page.getViewport({ scale: this.scale });
+        const effectiveScale = this.baseScale * this.zoomLevel;
+        const viewport = page.getViewport({ scale: effectiveScale });
 
         this.canvas.width = viewport.width;
         this.canvas.height = viewport.height;
@@ -40,7 +50,7 @@ export class PDFRenderer {
         };
 
         await page.render(renderContext).promise;
-        console.log('Page rendered:', pageNum);
+        console.log('Page rendered:', pageNum, 'at zoom:', this.zoomLevel);
     }
 
     getCanvasDimensions() {
@@ -62,5 +72,98 @@ export class PDFRenderer {
             this.currentPage--;
             this.renderPage(this.currentPage);
         }
+    }
+
+    setupPanHandlers() {
+        const container = this.canvas.parentElement;
+        
+        container.addEventListener('mousedown', (e) => {
+            // Only pan if we're zoomed in
+            if (this.zoomLevel > 1.0) {
+                this.isDragging = true;
+                this.lastMouseX = e.clientX;
+                this.lastMouseY = e.clientY;
+                container.style.cursor = 'grabbing';
+            }
+        });
+
+        container.addEventListener('mousemove', (e) => {
+            if (this.isDragging) {
+                const deltaX = e.clientX - this.lastMouseX;
+                const deltaY = e.clientY - this.lastMouseY;
+                
+                this.panX += deltaX;
+                this.panY += deltaY;
+                
+                this.lastMouseX = e.clientX;
+                this.lastMouseY = e.clientY;
+                
+                this.updateTransform();
+            }
+        });
+
+        container.addEventListener('mouseup', () => {
+            this.isDragging = false;
+            if (this.zoomLevel > 1.0) {
+                container.style.cursor = 'grab';
+            } else {
+                container.style.cursor = 'default';
+            }
+        });
+
+        container.addEventListener('mouseleave', () => {
+            this.isDragging = false;
+            if (this.zoomLevel > 1.0) {
+                container.style.cursor = 'grab';
+            } else {
+                container.style.cursor = 'default';
+            }
+        });
+    }
+
+    updateTransform() {
+        const container = this.canvas.parentElement;
+        const konvaContainer = document.getElementById('konva-container');
+        
+        const transform = `translate(${this.panX}px, ${this.panY}px)`;
+        this.canvas.style.transform = transform;
+        if (konvaContainer) {
+            konvaContainer.style.transform = transform;
+        }
+    }
+
+    zoomIn() {
+        this.zoomLevel = Math.min(this.zoomLevel * 1.2, 5.0);
+        this.renderPage(this.currentPage);
+        this.updateTransform();
+        const container = this.canvas.parentElement;
+        container.style.cursor = 'grab';
+        return this.zoomLevel;
+    }
+
+    zoomOut() {
+        this.zoomLevel = Math.max(this.zoomLevel / 1.2, 0.5);
+        this.renderPage(this.currentPage);
+        this.updateTransform();
+        const container = this.canvas.parentElement;
+        if (this.zoomLevel <= 1.0) {
+            container.style.cursor = 'default';
+        }
+        return this.zoomLevel;
+    }
+
+    resetZoom() {
+        this.zoomLevel = 1.0;
+        this.panX = 0;
+        this.panY = 0;
+        this.renderPage(this.currentPage);
+        this.updateTransform();
+        const container = this.canvas.parentElement;
+        container.style.cursor = 'default';
+        return this.zoomLevel;
+    }
+
+    getZoomLevel() {
+        return this.zoomLevel;
     }
 }
