@@ -9,7 +9,8 @@ class HealthController extends Controller
         return response()->json([
             'status' => 'ok',
             'timestamp' => time(),
-            'service' => 'Dieline App API'
+            'service' => 'Dieline App API',
+            'version' => '1.0.0'
         ]);
     }
 }

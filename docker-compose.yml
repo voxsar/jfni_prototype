@@ -1,6 +1,21 @@
 version: '3.8'
 
 services:
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - app-network
+
   frontend:
     build:
       context: ./frontend
@@ -12,7 +27,7 @@ services:
       - /app/node_modules
     environment:
       - NODE_ENV=development
-      - VITE_API_URL=http://localhost:3003
+      - VITE_API_URL=http://backend:3003
     networks:
       - app-network
 
@@ -25,9 +40,14 @@ services:
     volumes:
       - ./backend:/var/www/html
       - /var/www/html/vendor
+      - /var/www/html/storage
+      - /var/www/html/bootstrap/cache
     environment:
+      - APP_NAME=DielineApp
       - APP_ENV=local
       - APP_DEBUG=true
+      - APP_KEY=base64:bVIueIfr/iCxtUlpIX2VFjUefV60WCh0s8W0u0CzLF4=
+      - APP_URL=http://localhost:3003
       - DB_CONNECTION=mysql
       - DB_HOST=db
       - DB_PORT=3306

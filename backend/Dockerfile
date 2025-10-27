@@ -8,33 +8,42 @@ RUN apt-get update && apt-get install -y \
     libonig-dev \
     libxml2-dev \
     zip \
-    unzip
+    unzip \
+    nginx
 
 # Install PHP extensions
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
 
-# Get Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+# Get Composer 2
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Set working directory
 WORKDIR /var/www/html
 
 # Copy composer files
-COPY composer.json composer.lock* ./
+COPY composer.json composer.lock ./
 
-# Install dependencies (will be done when volume is mounted in dev)
-# RUN composer install --no-scripts --no-autoloader
+# Install dependencies
+RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # Copy application
 COPY . .
 
-# Generate autoload files
-# RUN composer dump-autoload --optimize
-
 # Set permissions
-RUN chown -R www-data:www-data /var/www/html
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 775 /var/www/html/storage \
+    && chmod -R 775 /var/www/html/bootstrap/cache
+
+# Create symbolic link for storage
+RUN php artisan storage:link || true
+
+# Configure nginx
+COPY docker/nginx.conf /etc/nginx/sites-available/default
+
+# Copy start script
+COPY docker/start.sh /start.sh
+RUN chmod +x /start.sh
 
 EXPOSE 3003
 
-# Run PHP built-in server for simplicity
-CMD ["php", "-S", "0.0.0.0:3003", "-t", "public"]
+CMD ["/start.sh"]

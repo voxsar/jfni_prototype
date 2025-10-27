@@ -9,49 +9,94 @@ class ProjectController extends Controller
 {
     public function index()
     {
+        $projects = Project::all();
+        
         return response()->json([
             'success' => true,
-            'data' => []
+            'data' => $projects
         ]);
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string',
-            'data' => 'required|array'
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'pdf_path' => 'nullable|string',
+            'geometry_data' => 'nullable|array',
+            'annotations' => 'nullable|array',
+            'status' => 'nullable|string|in:draft,processing,completed,error'
         ]);
 
-        // In a real app, would save to database
+        $project = Project::create($validated);
+
         return response()->json([
             'success' => true,
-            'id' => uniqid('project_'),
-            'message' => 'Project saved successfully'
-        ]);
+            'id' => $project->id,
+            'message' => 'Project saved successfully',
+            'data' => $project
+        ], 201);
     }
 
     public function show($id)
     {
+        $project = Project::find($id);
+        
+        if (!$project) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Project not found'
+            ], 404);
+        }
+
         return response()->json([
             'success' => true,
-            'data' => [
-                'id' => $id,
-                'name' => 'Sample Project',
-                'data' => []
-            ]
+            'data' => $project
         ]);
     }
 
     public function update(Request $request, $id)
     {
+        $project = Project::find($id);
+        
+        if (!$project) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Project not found'
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'description' => 'nullable|string',
+            'pdf_path' => 'nullable|string',
+            'geometry_data' => 'nullable|array',
+            'annotations' => 'nullable|array',
+            'status' => 'nullable|string|in:draft,processing,completed,error'
+        ]);
+
+        $project->update($validated);
+
         return response()->json([
             'success' => true,
-            'message' => 'Project updated successfully'
+            'message' => 'Project updated successfully',
+            'data' => $project
         ]);
     }
 
     public function destroy($id)
     {
+        $project = Project::find($id);
+        
+        if (!$project) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Project not found'
+            ], 404);
+        }
+
+        $project->delete();
+
         return response()->json([
             'success' => true,
             'message' => 'Project deleted successfully'

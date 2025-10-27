@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
         Schema::create('projects', function (Blueprint $table) {
@@ -15,11 +18,14 @@ return new class extends Migration
             $table->string('pdf_path')->nullable();
             $table->json('geometry_data')->nullable();
             $table->json('annotations')->nullable();
-            $table->string('status')->default('draft');
+            $table->enum('status', ['draft', 'processing', 'completed', 'error'])->default('draft');
             $table->timestamps();
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::dropIfExists('projects');
