@@ -21,32 +21,20 @@ export class AnnotationLayer {
 
         this.isDrawing = false;
         this.currentLine = null;
-        this.baseWidth = width;
-        this.baseHeight = height;
-        this.zoomLevel = 1.0;
 
         this.setupEventHandlers();
     }
 
     resize(width, height) {
-        this.baseWidth = width;
-        this.baseHeight = height;
         this.stage.width(width);
         this.stage.height(height);
-        this.updateScale();
     }
 
-    updateScale() {
-        // Scale the Konva stage to match the PDF zoom level
-        this.stage.scale({ x: this.zoomLevel, y: this.zoomLevel });
-        this.stage.width(this.baseWidth * this.zoomLevel);
-        this.stage.height(this.baseHeight * this.zoomLevel);
+    setZoom(zoomLevel, width, height) {
+        // Update stage dimensions to match the new PDF canvas size
+        this.stage.width(width);
+        this.stage.height(height);
         this.layer.batchDraw();
-    }
-
-    setZoom(zoomLevel) {
-        this.zoomLevel = zoomLevel;
-        this.updateScale();
     }
 
     setTool(tool) {

@@ -173,7 +173,8 @@ class DielineApp {
 
         const zoomLevel = this.pdfRenderer.zoomIn();
         if (this.annotationLayer) {
-            this.annotationLayer.setZoom(zoomLevel);
+            const dims = this.pdfRenderer.getCanvasDimensions();
+            this.annotationLayer.setZoom(zoomLevel, dims.width, dims.height);
         }
         this.updateStatus(`Zoom: ${Math.round(zoomLevel * 100)}%`);
     }
@@ -186,7 +187,8 @@ class DielineApp {
 
         const zoomLevel = this.pdfRenderer.zoomOut();
         if (this.annotationLayer) {
-            this.annotationLayer.setZoom(zoomLevel);
+            const dims = this.pdfRenderer.getCanvasDimensions();
+            this.annotationLayer.setZoom(zoomLevel, dims.width, dims.height);
         }
         this.updateStatus(`Zoom: ${Math.round(zoomLevel * 100)}%`);
     }
@@ -199,7 +201,8 @@ class DielineApp {
 
         const zoomLevel = this.pdfRenderer.resetZoom();
         if (this.annotationLayer) {
-            this.annotationLayer.setZoom(zoomLevel);
+            const dims = this.pdfRenderer.getCanvasDimensions();
+            this.annotationLayer.setZoom(zoomLevel, dims.width, dims.height);
         }
         this.updateStatus(`Zoom reset to 100%`);
     }
