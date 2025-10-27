@@ -1,6 +1,6 @@
 # Dieline Folding Application
 
-> **🔄 IMPORTANT UPDATE:** The backend has been upgraded to a full Laravel 10 + FilamentPHP 3.3 implementation with nginx reverse proxy support. See [LARAVEL_SETUP.md](LARAVEL_SETUP.md) for detailed setup instructions and [nginx/README.md](nginx/README.md) for reverse proxy configuration.
+> **🔄 IMPORTANT UPDATE:** The backend has been upgraded to a full Laravel 10 + FilamentPHP 3.3 implementation. This application is designed to run inside an external nginx reverse proxy. The internal nginx service has been removed from docker-compose.yml. See [LARAVEL_SETUP.md](LARAVEL_SETUP.md) for detailed setup instructions.
 
 A comprehensive 3D dieline folding application with PDF rendering, 2D annotations, automatic line detection, geometry compilation, and 3D visualization with fold animations.
 
@@ -31,6 +31,8 @@ A comprehensive 3D dieline folding application with PDF rendering, 2D annotation
   - Emboss maps with depth information
 - **3D Visualization**: Three.js scene with:
   - Real-time 3D preview
+  - **Interactive plane folding**: Click on any plane to fold it in 45-degree increments
+  - **PDF texture mapping**: Load PDF as an image texture on 3D models
   - UV mapping for textures
   - GSAP-powered fold animations
   - GLB/GLTF export functionality
@@ -46,7 +48,6 @@ A comprehensive 3D dieline folding application with PDF rendering, 2D annotation
 - **Project Persistence**: Save and load projects with Eloquent ORM
 - **Database**: MySQL 8.0 with migrations and seeders
 - **CORS Enabled**: Full cross-origin support for frontend integration
-- **Nginx Reverse Proxy**: Custom domain support (backend.jfni.artslabcreatives.com)
 
 ## Architecture
 
@@ -103,10 +104,10 @@ A comprehensive 3D dieline folding application with PDF rendering, 2D annotation
 - **MySQL 8**: Database
 
 ### Infrastructure
-- **Docker Compose**: Container orchestration with 4 services
-- **Nginx**: Reverse proxy for custom domains and load balancing
+- **Docker Compose**: Container orchestration with 3 services (frontend, backend, database)
 - **CORS**: Enabled for all origins in development
 - **MySQL 8**: Persistent database with volumes
+- **External Nginx**: Designed to work with external nginx reverse proxy
 
 ## Prerequisites
 
@@ -131,16 +132,14 @@ docker compose up --build
 ```
 
 3. Access the application:
-- **Frontend**: http://localhost (via nginx) or http://localhost:3002 (direct)
-- **Backend API**: http://localhost/api/health or http://localhost:3003/api/health (direct)
-- **Filament Admin**: http://localhost/admin or http://localhost:3003/admin (direct)
+- **Frontend**: http://localhost:3002
+- **Backend API**: http://localhost:3003/api/health
+- **Filament Admin**: http://localhost:3003/admin
 - **Database**: localhost:3306
 
-4. (Optional) Set up custom domains - see [LARAVEL_SETUP.md](LARAVEL_SETUP.md#using-custom-domains-locally)
-   - `frontend.jfni.artslabcreatives.com`
-   - `backend.jfni.artslabcreatives.com`
+> **Note**: This application is designed to run inside an external nginx reverse proxy. If you need to set up custom domains or SSL, configure your external nginx to proxy requests to the frontend (port 3002) and backend (port 3003) services.
 
-5. Create admin user for FilamentPHP:
+4. Create admin user for FilamentPHP:
 ```bash
 docker-compose exec backend php artisan make:filament-user
 ```
@@ -218,12 +217,19 @@ For FilamentPHP admin panel setup, see [LARAVEL_SETUP.md](LARAVEL_SETUP.md)
 - Click "Build 3D" to generate the 3D model
 - View the model in the right panel
 - Camera rotates automatically around the scene
+- **Click on any panel** in the 3D view to fold it by 45 degrees
+- Each click increments the fold angle by 45 degrees
 
-### 8. Animate Fold
+### 8. Load PDF Texture (Optional)
+- Click "Load PDF Texture" to apply the PDF as a texture on the 3D model
+- The PDF canvas will be mapped onto all 3D panels
+- This provides a realistic preview of how the final folded dieline will look
+
+### 9. Animate Fold
 - Click "Animate Fold" to see the GSAP-powered fold sequence
 - Panels fold along defined hinges with smooth animations
 
-### 9. Export GLB
+### 10. Export GLB
 - Click "Export GLB" to download the 3D model
 - File will be saved as `dieline_model.glb`
 - Compatible with Blender, Three.js, Unity, etc.
